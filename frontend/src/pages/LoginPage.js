@@ -314,8 +314,8 @@ const LoginPage = () => {
             
             <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
               <TextField
-                label="Email Address"
-                type="email"
+                label="Email Address or UID"
+                type="text"
                 fullWidth
                 margin="normal"
                 value={email}
@@ -323,6 +323,8 @@ const LoginPage = () => {
                 required
                 autoFocus
                 disabled={loading}
+                placeholder="Enter your email or user ID"
+                helperText="You can login using either your email address or UID"
                 sx={{
                   mb: 2,
                   '& .MuiOutlinedInput-root': {

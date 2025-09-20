@@ -170,28 +170,45 @@ exports.signup = async (req, res) => {
 // Login (all roles)
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body; // Note: 'email' field now accepts email or UID
     
     if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
+      return res.status(400).json({ message: 'Email/UID and password are required' });
     }
     
-    // Normalize email (trim whitespace and convert to lowercase)
-    const normalizedEmail = email.trim().toLowerCase();
+    const userInput = email.trim();
+    let user;
     
-    const user = await User.findOne({ email: normalizedEmail });
-    if (!user) {
-      // Try a more flexible search if exact match not found
-      const similarEmailUser = await User.findOne({ 
-        email: { $regex: new RegExp(normalizedEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } 
-      });
+    // Check if input is an email (contains @) or a UID
+    if (userInput.includes('@')) {
+      // Input is an email
+      const normalizedEmail = userInput.toLowerCase();
+      user = await User.findOne({ email: normalizedEmail });
       
-      if (similarEmailUser) {
-        console.log('Found user with similar email during login:', similarEmailUser.email);
-        // Don't suggest the email for security reasons, just use a generic message
-        return res.status(400).json({ message: 'Invalid credentials. Please check your email address.' });
+      if (!user) {
+        // Try a more flexible email search if exact match not found
+        const similarEmailUser = await User.findOne({ 
+          email: { $regex: new RegExp(normalizedEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } 
+        });
+        
+        if (similarEmailUser) {
+          console.log('Found user with similar email during login:', similarEmailUser.email);
+          // Don't suggest the email for security reasons, just use a generic message
+          return res.status(400).json({ message: 'Invalid credentials. Please check your email address.' });
+        }
       }
-      
+    } else {
+      // Input is a UID - search by regNo, teacherId, or studentId
+      user = await User.findOne({
+        $or: [
+          { regNo: userInput },
+          { teacherId: userInput },
+          { studentId: userInput }
+        ]
+      });
+    }
+    
+    if (!user) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
     

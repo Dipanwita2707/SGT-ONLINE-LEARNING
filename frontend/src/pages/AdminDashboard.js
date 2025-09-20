@@ -400,7 +400,7 @@ const AdminDashboard = () => {
             </Grid>
           </>
         )}
-        
+      
         <Box sx={{ mt: isOnMainDashboard ? 4 : 0 }}>
           <Routes>
             <Route path="analytics" element={<AnalyticsDashboard />} />
@@ -424,19 +424,15 @@ const AdminDashboard = () => {
       </Box>
       </Box>
       
-      {/* Footer - positioned at the bottom of the page */}
-    </Box>
-      <Box>
       <Footer />
-      </Box>
-      
-      {/* Profile Dialog */}
-      <ProfileDialog 
-        open={profileDialogOpen}
-        onClose={handleProfileClose}
-        user={currentUser}
-      />
-    </>
+    </Box>
+    
+    <ProfileDialog 
+      open={profileDialogOpen}
+      onClose={handleProfileClose}
+      user={currentUser}
+    />
+  </>
   );
 };
 
