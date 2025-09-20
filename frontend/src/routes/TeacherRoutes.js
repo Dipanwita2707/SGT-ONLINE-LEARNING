@@ -1,0 +1,82 @@
+import React from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { Box } from '@mui/material';
+import TeacherDashboard from '../components/teacher/TeacherDashboard';
+import CourseList from '../components/teacher/CourseList';
+import NotFound from '../components/common/NotFound';
+import ContentUpload from '../components/teacher/ContentUpload';
+import CourseVideos from '../components/teacher/CourseVideos';
+import CourseStudents from '../components/teacher/CourseStudents';
+import VideoRemovalRequest from '../components/teacher/VideoRemovalRequest';
+// Forum component imports removed
+// import CourseForums from '../components/teacher/CourseForums'; - REMOVED
+// import ForumsList from '../components/teacher/ForumsList'; - REMOVED
+// import ForumDiscussion from '../components/teacher/ForumDiscussion'; - REMOVED
+import TeacherStudents from '../pages/teacher/TeacherStudents';
+import TeacherEnhancedAnalytics from '../pages/teacher/TeacherEnhancedAnalytics';
+import TeacherAnalyticsFixed from '../components/teacher/TeacherAnalyticsFixed';
+import TeacherProfile from '../components/TeacherProfile';
+
+const TeacherRoutes = ({ user, token }) => {
+  if (!user || user.role !== 'teacher') {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Check if route is accessible based on user permissions
+  const hasAccess = (requiredPermission) => {
+    if (!requiredPermission) return true; // No permission required
+    return user.permissions && user.permissions.includes(requiredPermission);
+  };
+
+  return (
+    <Box sx={{ flexGrow: 1, p: { xs: 2, md: 3 } }}>
+      <Routes>
+        <Route path="/" element={<TeacherDashboard user={user} />} />
+        <Route path="/courses" element={<CourseList token={token} />} />
+        <Route path="/profile" element={<TeacherProfile token={token} user={user} />} />
+        
+        {/* Content management routes */}
+        <Route 
+          path="/videos/upload" 
+          element={
+            hasAccess('Manage Videos') 
+              ? <ContentUpload token={token} user={user} /> 
+              : <Navigate to="/teacher" replace />
+          } 
+        />
+        <Route path="/course/:courseId/videos" element={<CourseVideos token={token} user={user} />} />
+        <Route path="/video/:videoId/remove-request" element={<VideoRemovalRequest token={token} user={user} />} />
+        
+        {/* Student management routes */}
+        <Route 
+          path="/course/:courseId/students" 
+          element={
+            hasAccess('Manage Students') 
+              ? <CourseStudents token={token} user={user} /> 
+              : <Navigate to="/teacher" replace />
+          }
+        />
+        <Route path="/students" element={<TeacherStudents token={token} user={user} />} />
+        
+        {/* Forum routes removed */}
+        {/* <Route path="/forums" element={<ForumsList token={token} user={user} />} /> - REMOVED */}
+        {/* <Route path="/course/:courseId/forums" element={<CourseForums token={token} user={user} />} /> - REMOVED */}
+        {/* <Route path="/forum/:forumId" element={<ForumDiscussion token={token} user={user} />} /> - REMOVED */}
+        
+        {/* Analytics route - Using fixed analytics as the main analytics page */}
+        <Route 
+          path="/analytics" 
+          element={
+            hasAccess('View Analytics') 
+              ? <TeacherAnalyticsFixed token={token} user={user} /> 
+              : <Navigate to="/teacher" replace />
+          } 
+        />
+        
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Box>
+  );
+};
+
+export default TeacherRoutes;
