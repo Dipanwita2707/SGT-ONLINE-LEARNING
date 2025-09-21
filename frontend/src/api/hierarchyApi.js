@@ -216,6 +216,36 @@ export const getDepartmentsBySchool = async (schoolId) => {
   }
 };
 
+// Get Dean assignments (placeholder function)
+export const getDeanAssignments = async (deanId) => {
+  try {
+    const response = await api.get(`/api/dean/assignments/${deanId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+// Get User assignments (placeholder function) 
+export const getUserAssignments = async (userId) => {
+  try {
+    const response = await api.get(`/api/admin/user-assignments/${userId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+// Get My teaching assignments (placeholder function)
+export const getMyTeachingAssignments = async () => {
+  try {
+    const response = await api.get('/api/teacher/my-assignments');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export default {
   assignDeanToSchool,
   removeDeanFromSchool,
@@ -236,4 +266,7 @@ export default {
   getCoursesByDepartment,
   getAllSchools,
   getDepartmentsBySchool,
+  getDeanAssignments,
+  getUserAssignments,
+  getMyTeachingAssignments,
 };

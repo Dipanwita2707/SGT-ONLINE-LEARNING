@@ -26,6 +26,6 @@ router.get('/section/:sectionId/analytics', deanController.getSectionAnalyticsDe
 router.get('/sections', deanController.getSections);
 
 // Get dean's assigned sections and teaching assignments
-router.get('/assignments', deanController.getDeanAssignments);
+// router.get('/assignments', deanController.getDeanAssignments); // TODO: Implement getDeanAssignments
 
 module.exports = router;

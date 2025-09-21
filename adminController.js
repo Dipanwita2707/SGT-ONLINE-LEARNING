@@ -1,4 +1,4 @@
-// Bulk messaging: email or notification to students/teachers
+﻿// Bulk messaging: email or notification to students/teachers
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
 const Notification = require('../models/Notification');

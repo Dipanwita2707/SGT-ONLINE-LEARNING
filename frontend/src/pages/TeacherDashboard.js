@@ -28,6 +28,7 @@ import TeacherCCManagement from './teacher/TeacherCCManagement';
 import QuizUnlockDashboard from '../components/teacher/QuizUnlockDashboard';
 import VideoUnlockDashboard from '../components/teacher/VideoUnlockDashboard';
 import UnauthorizedPage from './UnauthorizedPage';
+import TeacherLiveClassDashboard from '../components/teacher/TeacherLiveClassDashboard';
 
 const TeacherDashboard = () => {
   const token = localStorage.getItem('token');
@@ -202,6 +203,7 @@ const TeacherDashboard = () => {
           <Route path="/courses" element={<TeacherCourses />} />
           <Route path="/sections" element={<TeacherSections user={currentUser} token={token} />} />
           <Route path="/section-analytics" element={<TeacherSectionAnalytics user={currentUser} token={token} />} />
+          <Route path="/live-classes" element={<TeacherLiveClassDashboard user={currentUser} token={token} />} />
           <Route path="/course/:courseId" element={<TeacherCourseDetail />} />
           <Route path="/videos" element={<PermissionRoute element={<TeacherVideos />} permission="manage_videos" />} />
           <Route path="/students" element={<PermissionRoute element={<TeacherStudents />} permission="manage_students" />} />

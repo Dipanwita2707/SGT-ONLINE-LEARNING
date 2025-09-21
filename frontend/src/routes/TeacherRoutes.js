@@ -15,6 +15,15 @@ import TeacherStudents from '../pages/teacher/TeacherStudents';
 import TeacherEnhancedAnalytics from '../pages/teacher/TeacherEnhancedAnalytics';
 import TeacherAnalyticsFixed from '../components/teacher/TeacherAnalyticsFixed';
 import TeacherProfile from '../components/TeacherProfile';
+import TeacherLiveClassDashboard from '../components/teacher/TeacherLiveClassDashboard';
+import TestLiveClassPage from '../components/teacher/TestLiveClassPage';
+import TeacherSections from '../components/teacher/TeacherSections';
+import TeacherSectionAnalytics from '../components/teacher/TeacherSectionAnalytics';
+import AnnouncementPage from '../pages/AnnouncementPage';
+import TeacherAnnouncementHistory from '../components/teacher/TeacherAnnouncementHistory';
+import TeacherQuizzes from '../pages/teacher/TeacherQuizzes';
+import QuizUnlockDashboard from '../components/teacher/QuizUnlockDashboard';
+import TeacherCCManagement from '../pages/teacher/TeacherCCManagement';
 
 const TeacherRoutes = ({ user, token }) => {
   if (!user || user.role !== 'teacher') {
@@ -31,6 +40,7 @@ const TeacherRoutes = ({ user, token }) => {
     <Box sx={{ flexGrow: 1, p: { xs: 2, md: 3 } }}>
       <Routes>
         <Route path="/" element={<TeacherDashboard user={user} />} />
+        <Route path="/dashboard" element={<TeacherDashboard user={user} />} />
         <Route path="/courses" element={<CourseList token={token} />} />
         <Route path="/profile" element={<TeacherProfile token={token} user={user} />} />
         
@@ -61,6 +71,25 @@ const TeacherRoutes = ({ user, token }) => {
         <Route path="/forums" element={<ForumsList token={token} user={user} />} />
         <Route path="/course/:courseId/forums" element={<CourseForums token={token} user={user} />} />
         <Route path="/forum/:forumId" element={<ForumDiscussion token={token} user={user} />} />
+        
+        {/* Live Classes route */}
+        <Route path="/live-classes" element={<TeacherLiveClassDashboard token={token} user={user} />} />
+        
+        {/* Sections routes */}
+        <Route path="/sections" element={<TeacherSections token={token} user={user} />} />
+        <Route path="/section-analytics" element={<TeacherSectionAnalytics token={token} user={user} />} />
+        
+        {/* Announcement routes */}
+        <Route path="/announcements" element={<AnnouncementPage token={token} user={user} />} />
+        <Route path="/announcements/history" element={<TeacherAnnouncementHistory token={token} user={user} />} />
+        
+        {/* Quiz routes */}
+        <Route path="/quizzes" element={<TeacherQuizzes token={token} user={user} />} />
+        <Route path="/unlock-requests" element={<QuizUnlockDashboard token={token} user={user} />} />
+        <Route path="/video-unlock-requests" element={<QuizUnlockDashboard token={token} user={user} />} />
+        
+        {/* CC Management route */}
+        <Route path="/cc-management" element={<TeacherCCManagement token={token} user={user} />} />
         
         {/* Analytics route - Using fixed analytics as the main analytics page */}
         <Route 
