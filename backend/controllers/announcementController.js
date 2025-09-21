@@ -279,7 +279,6 @@ exports.createAnnouncement = async (req, res) => {
         }
       }
     }
-
     // Create announcement
     const announcement = new Announcement({
       sender: senderId,
@@ -1018,7 +1017,6 @@ exports.getPendingCrossSchoolRequests = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
-
 // Get edit history for a specific announcement (Admin only)
 exports.getAnnouncementHistory = async (req, res) => {
   try {

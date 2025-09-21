@@ -196,7 +196,6 @@ exports.updateSection = async (req, res) => {
     res.status(500).json({ message: 'Failed to update section', error: error.message });
   }
 };
-
 // Assign a teacher to a section
 exports.assignTeacher = async (req, res) => {
   try {
@@ -1418,7 +1417,6 @@ exports.getSectionAnalytics = async (req, res) => {
           const unitB = units.find(u => u._id.toString() === b.unitId);
           return (unitA?.order || 0) - (unitB?.order || 0);
         });
-
         const avgQuizScore = totalQuizAttempts > 0 
           ? Math.round(totalQuizScore / totalQuizAttempts)
           : (studentQuizAttempts.length > 0 

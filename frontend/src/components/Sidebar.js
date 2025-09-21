@@ -24,6 +24,9 @@ import InsightsIcon from '@mui/icons-material/Insights';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import CommentIcon from '@mui/icons-material/Comment';
+import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
+import FlagIcon from '@mui/icons-material/Flag';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import AssessmentIcon from '@mui/icons-material/Assessment';
@@ -37,6 +40,7 @@ import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import GroupsIcon from '@mui/icons-material/Groups';
+import VideoCallIcon from '@mui/icons-material/VideoCall';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { hasPermission } from '../utils/permissions';
 
@@ -69,6 +73,7 @@ const Sidebar = ({ currentUser }) => {
   { text: 'Announcement History', icon: <HistoryIcon />, path: 'announcements/history', permission: null, color: '#ff9800' },
     { text: 'My Courses', icon: <MdClass />, path: 'courses', permission: null, color: '#f72585' },
     { text: 'My Sections', icon: <GroupsIcon />, path: 'sections', permission: null, color: '#ff5722' },
+    { text: 'Live Classes', icon: <VideoCallIcon />, path: 'live-classes', permission: null, color: '#00c851', isNew: true },
     { text: 'Section Analytics', icon: <InsightsIcon />, path: 'section-analytics', permission: null, color: '#4cc9f0' },
     { text: 'Quizzes', icon: <QuizIcon />, path: 'quizzes', permission: null, color: '#e91e63' },
     { text: 'Quiz Unlock Requests', icon: <LockOpenIcon />, path: 'unlock-requests', permission: null, color: '#d32f2f', isNew: true },
@@ -98,6 +103,7 @@ const Sidebar = ({ currentUser }) => {
   { text: 'Announcements', icon: <NotificationsActiveIcon />, path: 'announcements', color: '#1976d2' },
     { text: 'My Courses', icon: <MdClass />, path: 'courses', color: '#f72585' },
     { text: 'My Section', icon: <GroupsIcon />, path: 'section', color: '#ff5722' },
+    { text: 'Live Classes', icon: <VideoCallIcon />, path: 'live-classes', color: '#00c851', isNew: true },
     { text: 'Videos', icon: <VideoLibraryIcon />, path: 'videos', color: '#7209b7' },
   ];
   
@@ -261,120 +267,120 @@ const Sidebar = ({ currentUser }) => {
         {menu.map((item, index) => {
           const isSelected = location.pathname === `${basePath}/${item.path}`;
               
-              return (
-                <ListItemButton 
-                  key={item.text} 
-                  onClick={() => navigate(`${basePath}/${item.path}`)}
-                  sx={{ 
-                    my: 0.5,
-                    borderRadius: 2,
-                    py: 1.2,
-                    ...(isSelected && {
-                      bgcolor: alpha(item.color, 0.15),
-                      '&:hover': {
-                        bgcolor: alpha(item.color, 0.2),
-                      },
-                      borderRight: `3px solid ${item.color}`,
-                      pl: item.highlight ? 1 : 2
-                    }),
-                    ...(item.highlight && !isSelected && {
-                      borderLeft: `3px solid ${item.color}`,
-                      pl: 1,
-                    }),
-                    '&:hover': {
-                      bgcolor: alpha(item.color, 0.1),
-                      transform: 'translateX(4px)',
-                      boxShadow: `0 4px 12px ${alpha(item.color, 0.15)}`
-                    },
-                    position: 'relative',
-                    transition: 'all 0.25s ease-in-out',
-                    transform: isSelected ? 'scale(1.02)' : 'scale(1)',
-                    boxShadow: isSelected ? `0 4px 10px ${alpha(item.color, 0.2)}` : 'none',
-                    overflow: 'hidden',
-                    '&::after': {
-                      content: '""',
-                      position: 'absolute',
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '50%',
-                      backgroundColor: item.color,
-                      right: '12px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      opacity: isSelected ? 1 : 0,
-                      transition: 'opacity 0.3s ease'
-                    }
-                  }}
-                >
-                  <ListItemIcon sx={{ 
-                    color: isSelected ? item.color : 'inherit',
-                    minWidth: 40,
-                    transition: 'all 0.3s ease',
-                    transform: isSelected ? 'scale(1.1)' : 'scale(1)'
-                  }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary={
-                      <Box display="flex" alignItems="center">
-                        <Typography
-                          variant="body1"
-                          sx={{ 
-                            fontWeight: isSelected ? 600 : 400,
-                            color: isSelected ? item.color : 'inherit',
-                            transition: 'color 0.2s ease'
-                          }}
-                        >
-                          {item.text}
-                        </Typography>
-                        {item.isNew && (
-                          <Badge 
-                            sx={{ 
-                              ml: 1.5,
-                              "& .MuiBadge-badge": {
-                                fontSize: '0.6rem',
-                                height: 18,
-                                padding: '0 6px',
-                                backgroundColor: '#ff0066',
-                                color: 'white',
-                                fontWeight: 'bold',
-                                borderRadius: 10,
-                                boxShadow: '0 2px 6px rgba(255, 0, 102, 0.4)',
-                                animation: 'pulse 2s infinite'
-                              },
-                              '@keyframes pulse': {
-                                '0%': { boxShadow: '0 0 0 0 rgba(255, 0, 102, 0.7)' },
-                                '70%': { boxShadow: '0 0 0 6px rgba(255, 0, 102, 0)' },
-                                '100%': { boxShadow: '0 0 0 0 rgba(255, 0, 102, 0)' }
-                              }
-                            }}
-                            badgeContent="NEW"
-                          />
-                        )}
-                        {item.badge && (
-                          <Badge 
-                            sx={{ 
-                              ml: 1.5,
-                              "& .MuiBadge-badge": {
-                                fontSize: '0.6rem',
-                                height: 18,
-                                padding: '0 6px',
-                                backgroundColor: item.color || '#2e7d32',
-                                color: 'white',
-                                fontWeight: 'bold',
-                                borderRadius: 10,
-                                boxShadow: `0 2px 6px ${alpha(item.color || '#2e7d32', 0.4)}`,
-                              }
-                            }}
-                            badgeContent={item.badge}
-                          />
-                        )}
-                      </Box>
-                    }
-                  />
-                </ListItemButton>
-              );
-            })}
+          return (
+            <ListItemButton 
+              key={item.text} 
+              onClick={() => navigate(`${basePath}/${item.path}`)}
+              sx={{ 
+                my: 0.5,
+                borderRadius: 2,
+                py: 1.2,
+                ...(isSelected && {
+                  bgcolor: alpha(item.color, 0.15),
+                  '&:hover': {
+                    bgcolor: alpha(item.color, 0.2),
+                  },
+                  borderRight: `3px solid ${item.color}`,
+                  pl: item.highlight ? 1 : 2
+                }),
+                ...(item.highlight && !isSelected && {
+                  borderLeft: `3px solid ${item.color}`,
+                  pl: 1,
+                }),
+                '&:hover': {
+                  bgcolor: alpha(item.color, 0.1),
+                  transform: 'translateX(4px)',
+                  boxShadow: `0 4px 12px ${alpha(item.color, 0.15)}`
+                },
+                position: 'relative',
+                transition: 'all 0.25s ease-in-out',
+                transform: isSelected ? 'scale(1.02)' : 'scale(1)',
+                boxShadow: isSelected ? `0 4px 10px ${alpha(item.color, 0.2)}` : 'none',
+                overflow: 'hidden',
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: item.color,
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  opacity: isSelected ? 1 : 0,
+                  transition: 'opacity 0.3s ease'
+                }
+              }}
+            >
+              <ListItemIcon sx={{ 
+                color: isSelected ? item.color : 'inherit',
+                minWidth: 40,
+                transition: 'all 0.3s ease',
+                transform: isSelected ? 'scale(1.1)' : 'scale(1)'
+              }}>
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText 
+                primary={
+                  <Box display="flex" alignItems="center">
+                    <Typography
+                      variant="body1"
+                      sx={{ 
+                        fontWeight: isSelected ? 600 : 400,
+                        color: isSelected ? item.color : 'inherit',
+                        transition: 'color 0.2s ease'
+                      }}
+                    >
+                      {item.text}
+                    </Typography>
+                    {item.isNew && (
+                      <Badge 
+                        sx={{ 
+                          ml: 1.5,
+                          "& .MuiBadge-badge": {
+                            fontSize: '0.6rem',
+                            height: 18,
+                            padding: '0 6px',
+                            backgroundColor: '#ff0066',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            borderRadius: 10,
+                            boxShadow: '0 2px 6px rgba(255, 0, 102, 0.4)',
+                            animation: 'pulse 2s infinite'
+                          },
+                          '@keyframes pulse': {
+                            '0%': { boxShadow: '0 0 0 0 rgba(255, 0, 102, 0.7)' },
+                            '70%': { boxShadow: '0 0 0 6px rgba(255, 0, 102, 0)' },
+                            '100%': { boxShadow: '0 0 0 0 rgba(255, 0, 102, 0)' }
+                          }
+                        }}
+                        badgeContent="NEW"
+                      />
+                    )}
+                    {item.badge && (
+                      <Badge 
+                        sx={{ 
+                          ml: 1.5,
+                          "& .MuiBadge-badge": {
+                            fontSize: '0.6rem',
+                            height: 18,
+                            padding: '0 6px',
+                            backgroundColor: item.color || '#2e7d32',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            borderRadius: 10,
+                            boxShadow: `0 2px 6px ${alpha(item.color || '#2e7d32', 0.4)}`,
+                          }
+                        }}
+                        badgeContent={item.badge}
+                      />
+                    )}
+                  </Box>
+                }
+              />
+            </ListItemButton>
+          );
+        })}
       </List>
       
       <Box sx={{ flexGrow: 1 }} />

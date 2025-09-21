@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { 
   Typography, 
   Container, 
@@ -18,11 +18,20 @@ import {
   Avatar, 
   LinearProgress,
   Alert,
-  Chip
+  Chip,
+  Fade,
+  Slide,
+  Zoom,
+  keyframes,
+  useTheme,
+  IconButton,
+  Stack
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getCurrentUser } from '../../utils/authService';
+import LoadingScreen from '../../components/common/LoadingScreen';
+import SGTLogo from '../../components/common/SGTLogo';
 // import { getAllDeadlineWarnings } from '../../api/studentVideoApi';
 
 // Icons
@@ -31,9 +40,73 @@ import OndemandVideoIcon from '@mui/icons-material/OndemandVideo';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import WarningIcon from '@mui/icons-material/Warning';
+import SchoolIcon from '@mui/icons-material/School';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
+import StarIcon from '@mui/icons-material/Star';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import SettingsIcon from '@mui/icons-material/Settings';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import PeopleIcon from '@mui/icons-material/People';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+
+// Animation keyframes
+const fadeInUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const bounce = keyframes`
+  0%, 20%, 53%, 80%, 100% {
+    animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+    transform: translate3d(0, 0, 0);
+  }
+  40%, 43% {
+    animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
+    transform: translate3d(0, -8px, 0) scaleY(1.1);
+  }
+  70% {
+    animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
+    transform: translate3d(0, -4px, 0) scaleY(1.05);
+  }
+  90% {
+    transform: translate3d(0, -1px, 0);
+  }
+`;
+
+const shimmer = keyframes`
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+`;
+
+const pulse = keyframes`
+  0% {
+    box-shadow: 0 0 0 0 rgba(21, 101, 192, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 20px rgba(21, 101, 192, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(21, 101, 192, 0);
+  }
+`;
 
 const StudentHomeDashboard = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
   const token = localStorage.getItem('token');
   const currentUser = getCurrentUser(); // Use getCurrentUser instead of parseJwt
   
@@ -50,7 +123,21 @@ const StudentHomeDashboard = () => {
     averageScore: 0
   });
   const [loading, setLoading] = useState(true);
+  const [showLoading, setShowLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // Animation states
+  const [cardsLoaded, setCardsLoaded] = useState(false);
+  
+  useEffect(() => {
+    // Show loading screen for at least 2 seconds for better UX
+    const loadingTimer = setTimeout(() => {
+      setShowLoading(false);
+      setCardsLoaded(true);
+    }, 2000);
+
+    return () => clearTimeout(loadingTimer);
+  }, []);
   
   useEffect(() => {
     const fetchData = async () => {
@@ -130,10 +217,10 @@ const StudentHomeDashboard = () => {
           
           setCourses(enhancedCourses);
           
-          console.log('🔍 Debug - Enhanced Courses:', enhancedCourses);
+          console.log('ðŸ” Debug - Enhanced Courses:', enhancedCourses);
           
           // Update statistics with accurate data
-          console.log('🔍 Debug - Watch Statistics:', {
+          console.log('ðŸ” Debug - Watch Statistics:', {
             totalVideosWatched,
             totalWatchTimeAccumulated,
             courseWatchMap
@@ -199,19 +286,19 @@ const StudentHomeDashboard = () => {
   useEffect(() => {
     const fetchDeadlineWarnings = async () => {
       try {
-        console.log('🔍 StudentHomeDashboard: Fetching deadline warnings...');
+        console.log('ðŸ” StudentHomeDashboard: Fetching deadline warnings...');
         if (token) {
-          console.log('📞 Making API call to getAllDeadlineWarnings...');
+          console.log('ðŸ“ž Making API call to getAllDeadlineWarnings...');
           // const warnings = await getAllDeadlineWarnings(token);
-          // console.log('📋 Received deadline warnings:', warnings);
+          // console.log('ðŸ“‹ Received deadline warnings:', warnings);
           // setDeadlineWarnings(warnings);
           setDeadlineWarnings({ deadlineWarnings: [], summary: { total: 0, expired: 0, upcoming: 0 } });
         }
       } catch (error) {
-        console.error('❌ Error fetching deadline warnings:', error);
+        console.error('âŒ Error fetching deadline warnings:', error);
         setDeadlineWarnings({ deadlineWarnings: [], summary: { total: 0, expired: 0, upcoming: 0 } });
       } finally {
-        console.log('✅ Setting deadlineLoading to false');
+        console.log('âœ… Setting deadlineLoading to false');
         setDeadlineLoading(false);
       }
     };
@@ -259,284 +346,571 @@ const StudentHomeDashboard = () => {
       day: 'numeric'
     });
   };
-  
-  return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      {/* Student Dashboard with personalized welcome */}
-      <Box sx={{ mb: 4, textAlign: 'center' }}>
-        <Typography variant="h3" gutterBottom sx={{ 
-          background: 'linear-gradient(45deg, #2196F3, #21CBF3)',
-          backgroundClip: 'text',
-          WebkitBackgroundClip: 'text',
-          color: 'transparent',
-          fontWeight: 'bold',
-          mb: 1
-        }}>
-          Welcome back, {currentUser?.name || 'Student'}!
-        </Typography>
-        
-        <Typography variant="h6" color="text.secondary" gutterBottom>
-          Continue your learning journey
+
+  // Circular progress component
+  const CircularProgressWithLabel = ({ value, size = 120, thickness = 8, color = "#4F46E5" }) => (
+    <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+      <CircularProgress
+        variant="determinate"
+        value={value}
+        size={size}
+        thickness={thickness}
+        sx={{
+          color: color,
+          '& .MuiCircularProgress-circle': {
+            strokeLinecap: 'round',
+          },
+        }}
+      />
+      <Box
+        sx={{
+          top: 0,
+          left: 0,
+          bottom: 0,
+          right: 0,
+          position: 'absolute',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', color: color }}>
+          {Math.round(value)}
         </Typography>
       </Box>
-
-      {/* Deadline Warnings Section */}
-      {console.log('🎨 Rendering deadline section. deadlineLoading:', deadlineLoading, 'deadlineWarnings:', deadlineWarnings)}
-      {deadlineLoading ? (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          Loading deadline information...
-        </Alert>
-      ) : deadlineWarnings && deadlineWarnings.summary.total > 0 && (
-        <Alert 
-          severity={deadlineWarnings.summary.expired > 0 ? "error" : "warning"} 
-          sx={{ mb: 3 }}
-          icon={<WarningIcon />}
-        >
-          <Typography variant="h6" gutterBottom>
-            {deadlineWarnings.summary.expired > 0 ? "⚠️ Urgent Deadline Alerts!" : "📅 Upcoming Deadlines"}
-          </Typography>
-          <Typography variant="body2" paragraph>
-            You have {deadlineWarnings.summary.total} deadline{deadlineWarnings.summary.total !== 1 ? 's' : ''} requiring attention
-            {deadlineWarnings.summary.expired > 0 && (
-              <span style={{ fontWeight: 'bold', color: '#d32f2f' }}>
-                {' '}({deadlineWarnings.summary.expired} expired!)
-              </span>
-            )}
-          </Typography>
-          <List dense>
-            {deadlineWarnings.deadlineWarnings.slice(0, 3).map((warning) => (
-              <ListItem key={`${warning.course._id}-${warning.unit._id}`}>
-                <ListItemText
-                  primary={
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <Typography variant="subtitle2">
-                        {warning.course.title} - {warning.unit.title}
-                      </Typography>
-                      <Chip
-                        size="small"
-                        label={warning.warning.isExpired ? 'EXPIRED' : `${warning.warning.daysRemaining} days left`}
-                        color={warning.warning.isExpired ? 'error' : warning.warning.daysRemaining <= 1 ? 'warning' : 'info'}
-                      />
-                    </Box>
-                  }
-                  secondary={
-                    <Typography variant="body2" color="text.secondary">
-                      Deadline: {new Date(warning.unit.deadline).toLocaleDateString()} at{' '}
-                      {new Date(warning.unit.deadline).toLocaleTimeString()}
-                      {warning.unit.deadlineDescription && ` - ${warning.unit.deadlineDescription}`}
-                    </Typography>
-                  }
-                />
-              </ListItem>
-            ))}
-          </List>
-          {deadlineWarnings.deadlineWarnings.length > 3 && (
-            <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
-              ...and {deadlineWarnings.deadlineWarnings.length - 3} more deadline{deadlineWarnings.deadlineWarnings.length - 3 !== 1 ? 's' : ''}
-            </Typography>
-          )}
-        </Alert>
+    </Box>
+  );
+  
+  return (
+    <>
+      {showLoading && (
+        <LoadingScreen 
+          onComplete={() => setShowLoading(false)}
+          message="Loading your academic dashboard..."
+        />
       )}
-      
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress size={60} />
-        </Box>
-      ) : error ? (
-        <Typography color="error" sx={{ textAlign: 'center', mt: 4 }}>{error}</Typography>
-      ) : (
-        <>
-          {/* Statistics Cards Row */}
-          <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ 
-                height: '100%', 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                '&:hover': { transform: 'translateY(-4px)', transition: 'all 0.3s ease' }
+      {!showLoading && (
+        <Box
+          sx={{
+            minHeight: '100vh',
+            background: 'linear-gradient(120deg, #f6f7fb 0%, #e3e9f7 50%, #f9fafc 100%)',
+            backgroundAttachment: 'fixed',
+            backgroundSize: 'cover',
+            position: 'relative',
+            overflow: 'hidden',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '420px',
+              background: 'linear-gradient(135deg, rgba(52, 152, 219, 0.13) 0%, rgba(116, 185, 255, 0.09) 100%)',
+              clipPath: 'polygon(0 0, 100% 0, 100% 60%, 0 80%)',
+              zIndex: 0,
+            },
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'radial-gradient(circle at 20% 80%, rgba(52, 152, 219, 0.04) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(241, 196, 15, 0.04) 0%, transparent 50%)',
+              zIndex: 0,
+            },
+            fontFamily: 'Inter, Segoe UI, Arial, sans-serif',
+          }}
+        >
+          <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1, pt: 4, pb: 4 }}>
+            {/* Header Section with University Branding */}
+            <Fade in={cardsLoaded} timeout={800}>
+              <Box sx={{ 
+                textAlign: 'center', 
+                mb: 6,
+                position: 'relative',
+                zIndex: 2,
+                animation: `${fadeInUp} 0.8s ease-out`
               }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <VideoLibraryIcon sx={{ fontSize: 48, mb: 2, opacity: 0.9 }} />
-                  <Typography variant="h4" fontWeight="bold">
-                    {statistics.totalCourses}
-                  </Typography>
-                  <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                    Total Courses
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            
-            <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ 
-                height: '100%', 
-                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                color: 'white',
-                '&:hover': { transform: 'translateY(-4px)', transition: 'all 0.3s ease' }
-              }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <OndemandVideoIcon sx={{ fontSize: 48, mb: 2, opacity: 0.9 }} />
-                  <Typography variant="h4" fontWeight="bold">
-                    {statistics.videosWatched}
-                  </Typography>
-                  <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                    Videos Watched
-                  </Typography>
-                  <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                    out of {statistics.totalVideos}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            
-            <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ 
-                height: '100%', 
-                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                color: 'white',
-                '&:hover': { transform: 'translateY(-4px)', transition: 'all 0.3s ease' }
-              }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <AccessTimeIcon sx={{ fontSize: 48, mb: 2, opacity: 0.9 }} />
-                  <Typography variant="h4" fontWeight="bold">
-                    {formatDuration(statistics.totalWatchTime)}
-                  </Typography>
-                  <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                    Watch Time
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            
-            <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ 
-                height: '100%', 
-                background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-                color: 'white',
-                '&:hover': { transform: 'translateY(-4px)', transition: 'all 0.3s ease' }
-              }}>
-                <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                  <BarChartIcon sx={{ fontSize: 48, mb: 2, opacity: 0.9 }} />
-                  <Typography variant="h4" fontWeight="bold">
-                    {statistics.completedQuizzes}
-                  </Typography>
-                  <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                    Quizzes Completed
-                  </Typography>
-                  {statistics.averageScore > 0 && (
-                    <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                      Avg: {statistics.averageScore}%
-                    </Typography>
-                  )}
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
+                {/* Glassmorphism container for logo */}
+                <Box 
+                  sx={{ 
+                    display: 'inline-block',
+                    background: 'rgba(255, 255, 255, 0.25)',
+                    backdropFilter: 'blur(20px)',
+                    borderRadius: '30px',
+                    padding: '20px',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    boxShadow: '0 25px 45px rgba(0, 0, 0, 0.1)',
+                    mb: 3,
+                  }}
+                >
+                  <SGTLogo size={100} animate={false} showText={false} variant="minimal" />
+                </Box>
+                
+                <Typography 
+                  variant="h2" 
+                  sx={{ 
+                    fontWeight: 'bold',
+                    mb: 1,
+                    background: 'linear-gradient(45deg, #3498db, #f1c40f, #3498db)',
+                    backgroundSize: '200% 100%',
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    color: 'transparent',
+                    animation: `${shimmer} 3s ease-in-out infinite`,
+                    letterSpacing: '2px',
+                    fontFamily: '"Segoe UI", "Arial", sans-serif',
+                  }}
+                >
+                  Welcome back, {currentUser?.name || 'Student'}!
+                </Typography>
+                
+                <Typography 
+                  variant="h5" 
+                  sx={{ 
+                    color: '#34495e',
+                    fontWeight: 300,
+                    letterSpacing: '1px',
+                    mb: 3,
+                    opacity: 0.8,
+                  }}
+                >
+                  Continue your learning journey at SGT University
+                </Typography>
+                
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center', 
+                  gap: 3, 
+                  flexWrap: 'wrap',
+                }}>
+                  <Box
+                    sx={{
+                      background: 'linear-gradient(45deg, #f1c40f, #f39c12)',
+                      color: 'white',
+                      padding: '12px 24px',
+                      borderRadius: '30px',
+                      fontWeight: 'bold',
+                      boxShadow: '0 8px 32px rgba(241, 196, 15, 0.3)',
+                      border: '2px solid rgba(255, 255, 255, 0.3)',
+                      backdropFilter: 'blur(10px)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    <EmojiEventsIcon />
+                    NAAC A+ Accredited
+                  </Box>
+                  <Box
+                    sx={{
+                      background: 'rgba(52, 152, 219, 0.1)',
+                      color: '#2980b9',
+                      padding: '12px 24px',
+                      borderRadius: '30px',
+                      fontWeight: 'bold',
+                      border: '2px solid rgba(52, 152, 219, 0.3)',
+                      backdropFilter: 'blur(10px)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    <SchoolIcon />
+                    Excellence in Education
+                  </Box>
+                </Box>
+              </Box>
+            </Fade>
 
-          {/* Main Content Row */}
-          <Grid container spacing={3}>
-            {/* Progress Overview */}
-            <Grid item xs={12} lg={8}>
-              <Card sx={{ 
-                height: 400, 
-                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9ff 100%)',
-                border: '1px solid #e3f2fd'
-              }}>
-                <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                    <BarChartIcon color="primary" sx={{ mr: 2, fontSize: 32 }} />
-                    <Typography variant="h5" fontWeight="bold" color="primary">
-                      Your Progress
-                    </Typography>
-                  </Box>
-                  
-                  <Box sx={{ mb: 3 }}>
-                    <Typography variant="h6" gutterBottom>
-                      Overall Progress: {calculateOverallProgress()}%
-                    </Typography>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={calculateOverallProgress()} 
-                      sx={{ 
-                        height: 12, 
-                        borderRadius: 6,
-                        backgroundColor: '#e0e0e0',
-                        '& .MuiLinearProgress-bar': {
-                          background: 'linear-gradient(45deg, #2196F3, #21CBF3)',
-                          borderRadius: 6
-                        }
-                      }}
-                    />
-                  </Box>
-                  
-                  <Divider sx={{ my: 2 }} />
-                  
-                  <Typography variant="h6" gutterBottom>Course Progress</Typography>
-                  <List sx={{ overflow: 'auto', flexGrow: 1 }}>
-                    {courses.map((course) => (
-                      <ListItem key={course._id} sx={{ 
-                        py: 1.5, 
-                        px: 2, 
-                        mb: 1, 
-                        borderRadius: 2,
-                        backgroundColor: '#f8f9fa',
-                        '&:hover': { backgroundColor: '#e3f2fd' }
-                      }}>
-                        <ListItemAvatar>
-                          <Avatar sx={{ 
-                            bgcolor: (course.enhancedProgress !== undefined ? course.enhancedProgress : course.progress) > 50 ? 'success.main' : 'warning.main',
-                            width: 48,
-                            height: 48
-                          }}>
-                            <VideoLibraryIcon />
-                          </Avatar>
-                        </ListItemAvatar>
-                        <ListItemText 
+            {/* Deadline Warnings Section */}
+            {console.log('ðŸŽ¨ Rendering deadline section. deadlineLoading:', deadlineLoading, 'deadlineWarnings:', deadlineWarnings)}
+            {deadlineLoading ? (
+              <Slide direction="down" in={cardsLoaded} timeout={600}>
+                <Alert severity="info" sx={{ mb: 3, borderRadius: 3, boxShadow: 3 }}>
+                  Loading deadline information...
+                </Alert>
+              </Slide>
+            ) : deadlineWarnings && deadlineWarnings.summary.total > 0 && (
+              <Slide direction="down" in={cardsLoaded} timeout={600}>
+                <Alert 
+                  severity={deadlineWarnings.summary.expired > 0 ? "error" : "warning"} 
+                  sx={{ 
+                    mb: 4,
+                    borderRadius: 3,
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    background: deadlineWarnings.summary.expired > 0 
+                      ? 'linear-gradient(135deg, #ffebee, #ffcdd2)'
+                      : 'linear-gradient(135deg, #fff3e0, #ffe0b2)',
+                    animation: `${pulse} 2s infinite`,
+                  }}
+                  icon={<WarningIcon />}
+                >
+                  <Typography variant="h6" gutterBottom>
+                    {deadlineWarnings.summary.expired > 0 ? "âš ï¸ Urgent Deadline Alerts!" : "ðŸ“… Upcoming Deadlines"}
+                  </Typography>
+                  <Typography variant="body2" paragraph>
+                    You have {deadlineWarnings.summary.total} deadline{deadlineWarnings.summary.total !== 1 ? 's' : ''} requiring attention
+                    {deadlineWarnings.summary.expired > 0 && (
+                      <span style={{ fontWeight: 'bold', color: '#d32f2f' }}>
+                        {' '}({deadlineWarnings.summary.expired} expired!)
+                      </span>
+                    )}
+                  </Typography>
+                  <List dense>
+                    {deadlineWarnings.deadlineWarnings.slice(0, 3).map((warning) => (
+                      <ListItem key={`${warning.course._id}-${warning.unit._id}`}>
+                        <ListItemText
                           primary={
-                            <Typography variant="subtitle1" fontWeight="medium">
-                              {course.title}
-                            </Typography>
-                          }
-                          secondary={
-                            <Box sx={{ mt: 1 }}>
-                              <Typography variant="body2" color="text.secondary" gutterBottom>
-                                Progress: {course.enhancedProgress !== undefined ? course.enhancedProgress : (course.progress || 0)}% • 
-                                Videos: {course.actualVideosWatched !== undefined ? course.actualVideosWatched : (course.videosCompleted || 0)}/{course.totalVideos || 0}
-                                {course.actualWatchTime > 0 && (
-                                  <> • Watch Time: {formatDuration(course.actualWatchTime)}</>
-                                )}
+                            <Box display="flex" alignItems="center" gap={1}>
+                              <Typography variant="subtitle2">
+                                {warning.course.title} - {warning.unit.title}
                               </Typography>
-                              <LinearProgress 
-                                variant="determinate" 
-                                value={course.enhancedProgress !== undefined ? course.enhancedProgress : (course.progress || 0)} 
-                                sx={{ 
-                                  height: 6, 
-                                  borderRadius: 3,
-                                  '& .MuiLinearProgress-bar': {
-                                    borderRadius: 3
-                                  }
-                                }}
+                              <Chip
+                                size="small"
+                                label={warning.warning.isExpired ? 'EXPIRED' : `${warning.warning.daysRemaining} days left`}
+                                color={warning.warning.isExpired ? 'error' : warning.warning.daysRemaining <= 1 ? 'warning' : 'info'}
                               />
                             </Box>
+                          }
+                          secondary={
+                            <Typography variant="body2" color="text.secondary">
+                              Deadline: {new Date(warning.unit.deadline).toLocaleDateString()} at{' '}
+                              {new Date(warning.unit.deadline).toLocaleTimeString()}
+                              {warning.unit.deadlineDescription && ` - ${warning.unit.deadlineDescription}`}
+                            </Typography>
                           }
                         />
                       </ListItem>
                     ))}
                   </List>
-                  
-                  {courses.length === 0 && (
-                    <Box sx={{ textAlign: 'center', py: 4 }}>
-                      <Typography color="text.secondary">
-                        No courses enrolled yet
-                      </Typography>
-                    </Box>
+                  {deadlineWarnings.deadlineWarnings.length > 3 && (
+                    <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
+                      ...and {deadlineWarnings.deadlineWarnings.length - 3} more deadline{deadlineWarnings.deadlineWarnings.length - 3 !== 1 ? 's' : ''}
+                    </Typography>
                   )}
-                </CardContent>
-              </Card>
-            </Grid>
+                </Alert>
+              </Slide>
+            )}
             
-            {/* Activity Sidebar */}
-            <Grid item xs={12} lg={4}>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
+                <CircularProgress 
+                  size={80} 
+                  thickness={4}
+                  sx={{
+                    color: '#1565C0',
+                    '& .MuiCircularProgress-circle': {
+                      strokeLinecap: 'round',
+                    },
+                  }}
+                />
+              </Box>
+            ) : error ? (
+              <Fade in={cardsLoaded} timeout={800}>
+                <Alert severity="error" sx={{ 
+                  textAlign: 'center', 
+                  mt: 4, 
+                  borderRadius: 3,
+                  boxShadow: 3 
+                }}>
+                  {error}
+                </Alert>
+              </Fade>
+            ) : (
+              <>
+                {/* Statistics Cards */}
+                <Grid container spacing={3} sx={{ mb: 6 }}>
+                  {[
+                    {
+                      title: 'Total Courses',
+                      value: statistics.totalCourses,
+                      icon: <VideoLibraryIcon sx={{ fontSize: 48 }} />,
+                      gradient: 'linear-gradient(135deg, rgba(52, 152, 219, 0.15) 0%, rgba(116, 185, 255, 0.15) 100%)',
+                      iconColor: '#3498db',
+                      textColor: '#2980b9',
+                      delay: 200
+                    },
+                    {
+                      title: 'Videos Watched',
+                      value: statistics.videosWatched,
+                      subtitle: `out of ${statistics.totalVideos}`,
+                      icon: <OndemandVideoIcon sx={{ fontSize: 48 }} />,
+                      gradient: 'linear-gradient(135deg, rgba(231, 76, 60, 0.15) 0%, rgba(255, 118, 117, 0.15) 100%)',
+                      iconColor: '#e74c3c',
+                      textColor: '#c0392b',
+                      delay: 400
+                    },
+                    {
+                      title: 'Watch Time',
+                      value: formatDuration(statistics.totalWatchTime),
+                      icon: <AccessTimeIcon sx={{ fontSize: 48 }} />,
+                      gradient: 'linear-gradient(135deg, rgba(46, 204, 113, 0.15) 0%, rgba(125, 206, 160, 0.15) 100%)',
+                      iconColor: '#2ecc71',
+                      textColor: '#27ae60',
+                      delay: 600
+                    },
+                    {
+                      title: 'Quizzes Completed',
+                      value: statistics.completedQuizzes,
+                      subtitle: statistics.averageScore > 0 ? `Avg: ${statistics.averageScore}%` : '',
+                      icon: <BarChartIcon sx={{ fontSize: 48 }} />,
+                      gradient: 'linear-gradient(135deg, rgba(241, 196, 15, 0.15) 0%, rgba(253, 203, 110, 0.15) 100%)',
+                      iconColor: '#f1c40f',
+                      textColor: '#f39c12',
+                      delay: 800
+                    }
+                  ].map((stat, index) => (
+                    <Grid item xs={12} sm={6} md={3} key={index}>
+                      <Zoom in={cardsLoaded} timeout={500} style={{ transitionDelay: `${stat.delay}ms` }}>
+                        <Card sx={{ 
+                          height: '100%', 
+                          background: 'rgba(255, 255, 255, 0.7)',
+                          backdropFilter: 'blur(20px)',
+                          border: '1px solid rgba(255, 255, 255, 0.3)',
+                          borderRadius: 4,
+                          overflow: 'hidden',
+                          position: 'relative',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': { 
+                            transform: 'translateY(-10px) scale(1.03)',
+                            boxShadow: '0 25px 50px rgba(0,0,0,0.15)',
+                            background: 'rgba(255, 255, 255, 0.9)',
+                            '& .stat-icon': {
+                              transform: 'scale(1.1) rotate(5deg)',
+                            }
+                          },
+                          '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: '4px',
+                            background: stat.gradient.replace('0.15', '1'),
+                          }
+                        }}>
+                          <CardContent sx={{ textAlign: 'center', py: 4, position: 'relative', zIndex: 1 }}>
+                            <Box 
+                              className="stat-icon"
+                              sx={{ 
+                                mb: 2, 
+                                color: stat.iconColor,
+                                transition: 'all 0.3s ease',
+                                display: 'inline-block',
+                              }}
+                            >
+                              {stat.icon}
+                            </Box>
+                            <Typography variant="h3" fontWeight="bold" sx={{ color: stat.textColor, mb: 1 }}>
+                              {stat.value}
+                            </Typography>
+                            <Typography variant="h6" sx={{ color: stat.textColor, fontWeight: 500, opacity: 0.8 }}>
+                              {stat.title}
+                            </Typography>
+                            {stat.subtitle && (
+                              <Typography variant="body2" sx={{ color: stat.textColor, opacity: 0.6, mt: 1 }}>
+                                {stat.subtitle}
+                              </Typography>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </Zoom>
+                    </Grid>
+                  ))}
+                </Grid>
+
+                {/* Main Content Row */}
+                <Grid container spacing={4}>
+                  {/* Progress Overview */}
+                  <Grid item xs={12} lg={8}>
+                    <Slide direction="up" in={cardsLoaded} timeout={800}>
+                      <Card sx={{ 
+                        height: 450, 
+                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9ff 100%)',
+                        borderRadius: 4,
+                        boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+                        border: '1px solid rgba(21, 101, 192, 0.1)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: '6px',
+                          background: 'linear-gradient(90deg, #1565C0, #FFD700, #1565C0)',
+                        }
+                      }}>
+                        <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 4 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
+                            <Box sx={{
+                              p: 1.5,
+                              borderRadius: 3,
+                              background: 'linear-gradient(135deg, #1565C0, #0D47A1)',
+                              mr: 2,
+                              boxShadow: '0 4px 15px rgba(21, 101, 192, 0.3)',
+                            }}>
+                              <TrendingUpIcon sx={{ color: 'white', fontSize: 32 }} />
+                            </Box>
+                            <Typography variant="h4" fontWeight="bold" sx={{
+                              background: 'linear-gradient(45deg, #1565C0, #0D47A1)',
+                              backgroundClip: 'text',
+                              WebkitBackgroundClip: 'text',
+                              color: 'transparent',
+                            }}>
+                              Your Academic Progress
+                            </Typography>
+                          </Box>
+                          
+                          <Box sx={{ mb: 4 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                              <Typography variant="h5" fontWeight="bold" color="primary">
+                                Overall Progress
+                              </Typography>
+                              <Typography variant="h4" fontWeight="bold" color="primary">
+                                {calculateOverallProgress()}%
+                              </Typography>
+                            </Box>
+                            <LinearProgress 
+                              variant="determinate" 
+                              value={calculateOverallProgress()} 
+                              sx={{ 
+                                height: 16, 
+                                borderRadius: 8,
+                                backgroundColor: '#e3f2fd',
+                                '& .MuiLinearProgress-bar': {
+                                  background: 'linear-gradient(45deg, #1565C0, #FFD700)',
+                                  borderRadius: 8,
+                                  boxShadow: '0 2px 8px rgba(21, 101, 192, 0.3)',
+                                }
+                              }}
+                            />
+                          </Box>
+                          
+                          <Divider sx={{ my: 2, opacity: 0.3 }} />
+                          
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                            <Typography variant="h5" fontWeight="bold" color="text.primary">
+                              Course Progress
+                            </Typography>
+                            <Chip
+                              icon={<SchoolIcon />}
+                              label={`${courses.length} Courses`}
+                              sx={{
+                                background: 'linear-gradient(45deg, #1565C0, #0D47A1)',
+                                color: 'white',
+                                fontWeight: 'bold',
+                              }}
+                            />
+                          </Box>
+                          
+                          <List sx={{ overflow: 'auto', flexGrow: 1, pr: 1 }}>
+                            {courses.map((course, index) => (
+                              <Zoom in={cardsLoaded} timeout={600} style={{ transitionDelay: `${1000 + index * 200}ms` }} key={course._id}>
+                                <ListItem sx={{ 
+                                  py: 2, 
+                                  px: 3, 
+                                  mb: 2, 
+                                  borderRadius: 3,
+                                  background: 'linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%)',
+                                  border: '1px solid rgba(21, 101, 192, 0.1)',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                  '&:hover': { 
+                                    transform: 'translateX(8px)',
+                                    boxShadow: '0 8px 25px rgba(21, 101, 192, 0.15)',
+                                    background: 'linear-gradient(145deg, #e3f2fd 0%, #f8f9ff 100%)',
+                                  }
+                                }}>
+                                  <ListItemAvatar>
+                                    <Avatar sx={{ 
+                                      bgcolor: (course.enhancedProgress !== undefined ? course.enhancedProgress : course.progress) > 50 
+                                        ? 'linear-gradient(135deg, #4CAF50, #45a049)' 
+                                        : 'linear-gradient(135deg, #FF9800, #f57c00)',
+                                      width: 56,
+                                      height: 56,
+                                      border: '3px solid white',
+                                      boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+                                    }}>
+                                      <PlayCircleOutlineIcon sx={{ fontSize: 28 }} />
+                                    </Avatar>
+                                  </ListItemAvatar>
+                                  <ListItemText 
+                                    primary={
+                                      <Typography variant="h6" fontWeight="bold" color="primary" gutterBottom>
+                                        {course.title}
+                                      </Typography>
+                                    }
+                                    secondary={
+                                      <Box sx={{ mt: 1 }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                          <Typography variant="body2" color="text.secondary">
+                                            Progress: {course.enhancedProgress !== undefined ? course.enhancedProgress : (course.progress || 0)}% â€¢ 
+                                            Videos: {course.actualVideosWatched !== undefined ? course.actualVideosWatched : (course.videosCompleted || 0)}/{course.totalVideos || 0}
+                                            {course.actualWatchTime > 0 && (
+                                              <> â€¢ Watch Time: {formatDuration(course.actualWatchTime)}</>
+                                            )}
+                                          </Typography>
+                                          <Chip
+                                            size="small"
+                                            label={`${course.enhancedProgress !== undefined ? course.enhancedProgress : (course.progress || 0)}%`}
+                                            sx={{
+                                              background: (course.enhancedProgress !== undefined ? course.enhancedProgress : course.progress) > 50 
+                                                ? 'linear-gradient(45deg, #4CAF50, #45a049)' 
+                                                : 'linear-gradient(45deg, #FF9800, #f57c00)',
+                                              color: 'white',
+                                              fontWeight: 'bold',
+                                              minWidth: '60px',
+                                            }}
+                                          />
+                                        </Box>
+                                        <LinearProgress 
+                                          variant="determinate" 
+                                          value={course.enhancedProgress !== undefined ? course.enhancedProgress : (course.progress || 0)} 
+                                          sx={{ 
+                                            height: 8, 
+                                            borderRadius: 4,
+                                            backgroundColor: '#e0e0e0',
+                                            '& .MuiLinearProgress-bar': {
+                                              background: (course.enhancedProgress !== undefined ? course.enhancedProgress : course.progress) > 50 
+                                                ? 'linear-gradient(45deg, #4CAF50, #45a049)' 
+                                                : 'linear-gradient(45deg, #FF9800, #f57c00)',
+                                              borderRadius: 4,
+                                            }
+                                          }}
+                                        />
+                                      </Box>
+                                    }
+                                  />
+                                </ListItem>
+                              </Zoom>
+                            ))}
+                          </List>
+                          
+                          {courses.length === 0 && (
+                            <Box sx={{ textAlign: 'center', py: 8 }}>
+                              <SchoolIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+                              <Typography variant="h6" color="text.secondary">
+                                No courses enrolled yet
+                              </Typography>
+                              <Typography variant="body2" color="text.disabled">
+                                Start your learning journey today!
+                              </Typography>
+                            </Box>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </Slide>
+                  </Grid>
+                  
+                  {/* Recent Activity Sidebar */}
+                  <Grid item xs={12} lg={4}>
               {/* Recent Activity */}
               <Card sx={{ 
                 height: 400, // Expanded height since we removed forums
@@ -581,7 +955,7 @@ const StudentHomeDashboard = () => {
                             }
                             secondary={
                               <Typography variant="caption" color="text.secondary">
-                                {video.courseTitle} • {formatDuration(video.timeSpent)} • {formatDate(video.lastWatched)}
+                                {video.courseTitle} â€¢ {formatDuration(video.timeSpent)} â€¢ {formatDate(video.lastWatched)}
                               </Typography>
                             }
                           />
@@ -661,6 +1035,9 @@ const StudentHomeDashboard = () => {
         </>
       )}
     </Container>
+        </Box>
+      )}
+    </>
   );
 };
 

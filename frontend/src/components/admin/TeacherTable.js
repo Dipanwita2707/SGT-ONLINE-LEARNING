@@ -25,32 +25,24 @@ const TeacherTable = ({ teachers, onResetPassword, onDeactivate, onAssignCourse 
   );
   
   // Format assigned courses
-  const formatCourses = (courses, sectionAssignments) => {
+  const formatCourses = (courses) => {
     if (!courses || !Array.isArray(courses) || courses.length === 0) {
       return <span style={{ color: '#999' }}>No courses</span>;
     }
     
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
         {courses.map((course, index) => (
           <Tooltip 
             key={index} 
-            title={
-              course.assignmentType === 'section-based' 
-                ? `${course.title || 'Unknown'} (Section: ${course.section})`
-                : course.title || (typeof course === 'string' ? course : 'Unknown')
-            }
+            title={course.title || (typeof course === 'string' ? course : 'Unknown')}
           >
             <Chip 
-              label={
-                course.assignmentType === 'section-based'
-                  ? `${course.courseCode || 'Course'} (${course.section})`
-                  : course.courseCode || (typeof course === 'string' ? 'Course' : 'Unknown')
-              } 
+              label={course.courseCode || (typeof course === 'string' ? 'Course' : 'Unknown')} 
               size="small" 
-              color={course.assignmentType === 'section-based' ? 'secondary' : 'primary'}
+              color="primary"
               variant="outlined"
-              sx={{ margin: '2px', alignSelf: 'flex-start' }} 
+              sx={{ margin: '2px' }} 
             />
           </Tooltip>
         ))}
@@ -86,7 +78,7 @@ const TeacherTable = ({ teachers, onResetPassword, onDeactivate, onAssignCourse 
                 <TableCell>{teacher.name}</TableCell>
                 <TableCell>{teacher.email}</TableCell>
                 <TableCell>{teacher.isActive ? 'Active' : 'Deactivated'}</TableCell>
-                <TableCell>{formatCourses(teacher.coursesAssigned, teacher.sectionCourseAssignments)}</TableCell>
+                <TableCell>{formatCourses(teacher.coursesAssigned)}</TableCell>
                 <TableCell>
                   <Button size="small" onClick={() => onResetPassword(teacher._id)}>
                     Reset Password

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Box, 
@@ -51,7 +50,7 @@ const AddTeacherForm = ({ onAdd }) => {
 
   const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-  // Fetch schools, departments, courses, and sections on component mount
+  // Fetch schools, departments, and sections on component mount
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -147,6 +146,7 @@ const AddTeacherForm = ({ onAdd }) => {
     setForm({ ...form, [e.target.name]: e.target.value });
     setTouched({ ...touched, [e.target.name]: true });
   };
+  
   const handlePermissionChange = key => {
     setForm(f => ({
       ...f,

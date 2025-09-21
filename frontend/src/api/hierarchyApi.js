@@ -179,15 +179,6 @@ export const getTeachersByDepartment = async (departmentId) => {
   }
 };
 
-export const getTeachersByCourse = async (courseId) => {
-  try {
-    const response = await api.get(`/api/hierarchy/teachers-by-course/${courseId}`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
 export const getStudentsBySchool = async (schoolId) => {
   try {
     const response = await api.get(`/api/hierarchy/students-by-school/${schoolId}`);
@@ -225,45 +216,6 @@ export const getDepartmentsBySchool = async (schoolId) => {
   }
 };
 
-// User Assignment APIs
-export const getUserAssignments = async (userId) => {
-  try {
-    const response = await api.get(`/api/admin/user-assignments/${userId}`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
-export const getDeanAssignments = async () => {
-  try {
-    const response = await api.get('/api/dean/assignments');
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
-// Get teaching assignments for the current user
-export const getMyTeachingAssignments = async () => {
-  try {
-    const response = await api.get('/api/hierarchy/my-teaching-assignments');
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
-// Get teachers by course hierarchy (department teachers + HOD + school dean)
-export const getTeachersByCourseHierarchy = async (courseId, sectionId) => {
-  try {
-    const response = await api.get(`/api/hierarchy/teachers-by-course/${courseId}`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
 export default {
   assignDeanToSchool,
   removeDeanFromSchool,
@@ -284,9 +236,4 @@ export default {
   getCoursesByDepartment,
   getAllSchools,
   getDepartmentsBySchool,
-  getUserAssignments,
-  getDeanAssignments,
-  getMyTeachingAssignments,
-  getTeachersByCourse,
-  getTeachersByCourseHierarchy
 };

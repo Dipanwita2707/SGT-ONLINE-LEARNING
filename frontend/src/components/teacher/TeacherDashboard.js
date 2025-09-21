@@ -8,6 +8,7 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import PersonIcon from '@mui/icons-material/Person';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import ClassIcon from '@mui/icons-material/Class';
+import VideoCallIcon from '@mui/icons-material/VideoCall';
 import { hasPermission } from '../../utils/permissions';
 
 const TeacherDashboard = ({ user }) => {
@@ -160,6 +161,34 @@ const TeacherDashboard = ({ user }) => {
                     disabled={!hasPermission(user, 'manage_videos')}
                   >
                     Upload Content
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Live Classes Card */}
+          <Grid item xs={12} md={6} lg={4}>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <CardContent sx={{ flexGrow: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <VideoCallIcon color="success" sx={{ fontSize: 40, mr: 2 }} />
+                  <Typography variant="h5" component="div">
+                    Live Classes
+                  </Typography>
+                </Box>
+                <Typography variant="body1" color="text.secondary" paragraph>
+                  Schedule and conduct live video classes with your students. Record sessions for later viewing.
+                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    component={Link}
+                    to="/teacher/live-classes"
+                    startIcon={<VideoCallIcon />}
+                  >
+                    Manage Classes
                   </Button>
                 </Box>
               </CardContent>

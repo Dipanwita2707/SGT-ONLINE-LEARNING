@@ -96,7 +96,6 @@ const AdminDashboard = () => {
         setActivityLoading(false);
       }
     })();
-    
   }, [token]);
 
   // Helper function to render loading or empty state

@@ -6,7 +6,6 @@ const compression = require('compression');
 const helmet = require('helmet');
 const app = express();
 require('dotenv').config();
-
 app.use(cors());
 
 // Security headers (lightweight defaults)
@@ -45,6 +44,7 @@ const teacherRoutes = require('./routes/teacher');
 const hodRoutes = require('./routes/hod');
 const deanRoutes = require('./routes/dean');
 const hodAnnouncementHistoryRoutes = require('./routes/hodAnnouncementHistory');
+// ...existing code...
 const quizRoutes = require('./routes/quiz');
 const quizPoolRoutes = require('./routes/quizPool');
 const unitRoutes = require('./routes/unit');
@@ -62,6 +62,7 @@ const quizSecurityRoutes = require('./routes/quizSecurity');
 const secureQuizRoutes = require('./routes/secureQuiz');
 const ccRoutes = require('./routes/cc');
 const quizUnlockRoutes = require('./routes/quizUnlock');
+const liveClassRoutes = require('./routes/liveClass');
 
 app.use('/api/admin', adminRoutes);
 app.use('/api/auth', authRoutes);
@@ -75,6 +76,7 @@ app.use('/api/teacher', teacherRoutes);
 app.use('/api/hod', hodRoutes);
 app.use('/api/dean', deanRoutes);
 app.use('/api/hod/announcements', hodAnnouncementHistoryRoutes);
+// ...existing code...
 app.use('/api/quizzes', quizRoutes); // Quiz routes
 app.use('/api/quiz-pools', quizPoolRoutes); // Quiz pool routes
 app.use('/api/unit', unitRoutes); // Unit routes (mounted at /api/unit)
@@ -95,6 +97,7 @@ app.use('/api/student/quiz', quizRoutes); // Student quiz routes
 app.use('/api/student', secureQuizRoutes); // Secure quiz routes
 app.use('/api/cc', ccRoutes); // Course Coordinator routes
 app.use('/api/quiz-unlock', quizUnlockRoutes); // Quiz unlock system routes
+app.use('/api/live-classes', liveClassRoutes); // Live class routes
 app.use('/api/video-unlock', require('./routes/videoUnlock')); // Video unlock system routes
 
 // Connect to MongoDB using only the .env file configuration
@@ -191,9 +194,15 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Internal server error' });
 });
 
-app.listen(PORT, async () => {
+// Initialize Socket.IO for live classes BEFORE starting the server
+const http = require('http');
+const server = http.createServer(app);
+const initializeLiveClassSocket = require('./socket/liveClassSocket');
+initializeLiveClassSocket(server);
+console.log('✅ Live Class Socket.IO server initialized');
+
+server.listen(PORT, '0.0.0.0', async () => {
   await createAdmin();
-  
   // Run migrations
   const generateTeacherIds = require('./migrations/generateTeacherIds');
   await generateTeacherIds();

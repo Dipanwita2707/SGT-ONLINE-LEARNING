@@ -52,6 +52,7 @@ Department.js          # Academic departments
 School.js              # School/college info
 Role.js                # User roles & permissions
 Setting.js             # System settings
+Discussion.js          # Forum discussions
 Notification.js        # Push notifications
 TeacherRequest.js      # Teacher approval requests
 ```
@@ -218,6 +219,7 @@ Roles: Admin, Dean, HOD, Course Coordinator, Teacher, Student
 ```
 - Hierarchical announcements
 - Notification system
+- Discussion forums
 - Teacher-student messaging
 ```
 

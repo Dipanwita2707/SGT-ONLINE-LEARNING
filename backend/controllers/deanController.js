@@ -50,8 +50,8 @@ exports.getOverview = async (req, res) => {
         departments,
         teachers: teachersCount,
         students: studentsCount,
-        courses: coursesCount,
-        hods: hodsCount
+  courses: coursesCount,
+  hods: hodsCount
       }
     });
   } catch (err) {
@@ -1202,101 +1202,4 @@ exports.exportSectionAnalyticsCsv = async (req, res) => {
     res.status(err.status || 500).json({ message: err.message });
   }
 };
-
-// Get dean's assigned sections and teaching assignments
-exports.getDeanAssignments = async (req, res) => {
-  try {
-    const deanId = req.user._id;
-    const school = await getDeanSchool(req);
-    
-    // Get dean with populated assigned sections
-    const dean = await User.findById(deanId)
-      .populate({
-        path: 'assignedSections',
-        populate: [
-          { path: 'school', select: 'name code' },
-          { path: 'department', select: 'name code' },
-          { path: 'courses', select: 'title courseCode' },
-          { path: 'students', select: 'name email regNo' }
-        ]
-      })
-      .select('name email role assignedSections');
-
-    if (!dean) {
-      return res.status(404).json({ message: 'Dean not found' });
-    }
-
-    // Get course-teacher assignments for this dean
-    const courseAssignments = await SectionCourseTeacher.find({
-      teacher: deanId,
-      isActive: true
-    }).populate([
-      { path: 'section', select: 'name sectionCode' },
-      { path: 'course', select: 'title courseCode' },
-      { path: 'assignedBy', select: 'name email' }
-    ]);
-
-    // Get all sections in dean's school
-    const schoolSections = await Section.find({
-      school: school._id,
-      isActive: true
-    }).populate([
-      { path: 'department', select: 'name code' },
-      { path: 'courses', select: 'title courseCode' },
-      { path: 'students', select: 'name email regNo' },
-      { path: 'teacher', select: 'name email' }
-    ]);
-
-    // Calculate statistics
-    let stats = {
-      assignedSections: dean.assignedSections ? dean.assignedSections.length : 0,
-      totalStudentsInAssignedSections: 0,
-      totalCoursesInAssignedSections: 0,
-      activeCourseAssignments: courseAssignments.length,
-      schoolSections: schoolSections.length,
-      totalStudentsInSchool: 0
-    };
-
-    if (dean.assignedSections) {
-      // Calculate total students across dean's assigned sections
-      stats.totalStudentsInAssignedSections = dean.assignedSections.reduce((total, section) => {
-        return total + (section.students ? section.students.length : 0);
-      }, 0);
-
-      // Calculate unique courses across dean's assigned sections
-      const uniqueCourses = new Set();
-      dean.assignedSections.forEach(section => {
-        if (section.courses) {
-          section.courses.forEach(course => uniqueCourses.add(course._id.toString()));
-        }
-      });
-      stats.totalCoursesInAssignedSections = uniqueCourses.size;
-    }
-
-    // Calculate total students in school
-    stats.totalStudentsInSchool = schoolSections.reduce((total, section) => {
-      return total + (section.students ? section.students.length : 0);
-    }, 0);
-
-    res.json({
-      success: true,
-      dean: {
-        _id: dean._id,
-        name: dean.name,
-        email: dean.email,
-        role: dean.role
-      },
-      school,
-      assignedSections: dean.assignedSections || [],
-      courseAssignments,
-      schoolSections,
-      stats
-    });
-  } catch (error) {
-    console.error('Error getting dean assignments:', error);
-    res.status(error.status || 500).json({ 
-      success: false,
-      message: error.message || 'Failed to get dean assignments'
-    });
-  }
-};
+// ...existing code...

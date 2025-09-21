@@ -44,8 +44,6 @@ import {
   getDepartmentsBySchool,
   getCoursesByDepartment,
   getTeachersByDepartment,
-  getTeachersByCourse,
-  getTeachersByCourseHierarchy,
   getStudentsBySchool,
   createSectionWithCourses
 } from '../../api/hierarchyApi';
@@ -60,7 +58,6 @@ const SectionManagement = ({ user, token }) => {
   const [students, setStudents] = useState([]);
   
   const [openDialog, setOpenDialog] = useState(false);
-  const [openEditDialog, setOpenEditDialog] = useState(false);
   const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
   const [openStudentAssignDialog, setOpenStudentAssignDialog] = useState(false);
   const [openCourseAssignDialog, setOpenCourseAssignDialog] = useState(false);
@@ -94,15 +91,6 @@ const SectionManagement = ({ user, token }) => {
     courseId: '', // Changed from courseIds to courseId to match the form
     teacherId: '',
     studentIds: [],
-    capacity: 80,
-    semester: 'Fall',
-    year: new Date().getFullYear()
-  });
-
-  const [editFormData, setEditFormData] = useState({
-    name: '',
-    schoolId: '',
-    departmentId: '',
     capacity: 80,
     semester: 'Fall',
     year: new Date().getFullYear()
@@ -206,33 +194,11 @@ const SectionManagement = ({ user, token }) => {
   };
 
   // Fetch available teachers for assignment
-  const fetchAvailableTeachers = async (departmentId, schoolId = null) => {
+  const fetchAvailableTeachers = async (departmentId) => {
     try {
-      let teachers = [];
+      if (!departmentId) return;
       
-      if (departmentId) {
-        // First try to get teachers from the specific department
-        teachers = await getTeachersByDepartment(departmentId);
-      }
-      
-      // If no teachers found in department or no department specified, 
-      // try to get teachers from the school
-      if (teachers.length === 0 && schoolId) {
-        try {
-          const schools = await getAllSchools();
-          const school = schools.find(s => s._id === schoolId);
-          if (school && school.departments) {
-            for (const dept of school.departments) {
-              const deptTeachers = await getTeachersByDepartment(dept._id);
-              teachers.push(...deptTeachers);
-            }
-          }
-        } catch (err) {
-          console.warn('Could not fetch school-wide teachers:', err);
-        }
-      }
-      
-      console.log('Available teachers found:', teachers.length);
+      const teachers = await getTeachersByDepartment(departmentId);
       setAvailableTeachers(teachers);
     } catch (err) {
       console.error('Error fetching available teachers:', err);
@@ -320,7 +286,7 @@ const SectionManagement = ({ user, token }) => {
       setSuccess('Section created successfully!');
       
       // Reset form
-      const resetFormData = {
+      setFormData({
         name: '',
         schoolId: '',
         departmentId: '',
@@ -330,17 +296,7 @@ const SectionManagement = ({ user, token }) => {
         capacity: 80,
         semester: 'Fall',
         year: new Date().getFullYear()
-      };
-      
-      console.log('Resetting form data to:', resetFormData);
-      setFormData(resetFormData);
-      
-      // Also clear dependent state
-      setDepartments([]);
-      setCourses([]);
-      setTeachers([]);
-      setStudents([]);
-      
+      });
       setOpenDialog(false);
       
       // Refresh sections list
@@ -349,64 +305,6 @@ const SectionManagement = ({ user, token }) => {
       setError(err.message || 'Failed to create section');
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Open edit dialog
-  const openEditSection = (section) => {
-    setSelectedSection(section);
-    setEditFormData({
-      name: section.name || '',
-      schoolId: section.school?._id || '',
-      departmentId: section.department?._id || '',
-      capacity: section.capacity || 80,
-      semester: section.semester || 'Fall',
-      year: section.year || new Date().getFullYear()
-    });
-    
-    // Fetch departments for the selected school
-    if (section.school?._id) {
-      fetchDepartmentsBySchool(section.school._id);
-    }
-    
-    setOpenEditDialog(true);
-  };
-
-  // Handle section update
-  const handleUpdateSection = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      
-      const updateData = {
-        name: editFormData.name,
-        schoolId: editFormData.schoolId,
-        departmentId: editFormData.departmentId || null,
-        capacity: editFormData.capacity,
-        semester: editFormData.semester,
-        year: editFormData.year
-      };
-      
-      await sectionApi.updateSection(selectedSection._id, updateData, token);
-      setSuccess('Section updated successfully!');
-      
-      setOpenEditDialog(false);
-      
-      // Refresh sections list
-      fetchAllSections();
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to update section');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle edit form school change
-  const handleEditSchoolChange = (schoolId) => {
-    setEditFormData({ ...editFormData, schoolId, departmentId: '' });
-    setDepartments([]);
-    if (schoolId) {
-      fetchDepartmentsBySchool(schoolId);
     }
   };
 
@@ -534,7 +432,7 @@ const SectionManagement = ({ user, token }) => {
   const openTeacherAssignment = async () => {
     if (!selectedSection) return;
     
-    await fetchAvailableTeachers(selectedSection.department?._id, selectedSection.school?._id);
+    await fetchAvailableTeachers(selectedSection.department?._id);
     setSelectedTeacherToAssign('');
     setOpenTeacherAssignDialog(true);
   };
@@ -632,66 +530,16 @@ const SectionManagement = ({ user, token }) => {
     }
   };
 
-  // Fetch teachers for a specific course (includes dept teachers + HOD + dean)
-  const fetchTeachersForCourse = async (courseId) => {
-    try {
-      console.log('🎯 fetchTeachersForCourse called with courseId:', courseId);
-      
-      if (!courseId) {
-        console.log('🎯 No courseId provided, clearing teachers');
-        setAvailableTeachers([]);
-        return;
-      }
-      
-      if (!selectedSection) {
-        console.log('🎯 No section selected, clearing teachers');
-        setAvailableTeachers([]);
-        return;
-      }
-      
-      console.log('🎯 Fetching hierarchical teachers for course:', courseId, 'section:', selectedSection._id);
-      
-      // Use new hierarchical API that gets teachers + HOD + dean based on course and section
-      const response = await getTeachersByCourseHierarchy(courseId, selectedSection._id);
-      console.log('🎯 Hierarchical teachers response:', response);
-      
-      if (response && response.success && response.instructors) {
-        // Transform the instructors to match the expected format
-        const teachers = response.instructors.map(instructor => ({
-          ...instructor,
-          // Add additional display info
-          displayName: `${instructor.name} (${instructor.email})`,
-          roleInfo: instructor.context || instructor.roleType.toUpperCase()
-        }));
-        
-        console.log('🎯 Final hierarchical teachers:', teachers.length, teachers);
-        console.log('🎯 Summary:', response.summary);
-        
-        setAvailableTeachers(teachers);
-      } else {
-        console.warn('🎯 No instructors found or invalid response:', response);
-        setAvailableTeachers([]);
-      }
-    } catch (err) {
-      console.error('Error fetching hierarchical teachers for course:', err);
-      setError('Failed to fetch teachers for selected course: ' + (err.response?.data?.message || err.message));
-      setAvailableTeachers([]);
-    }
-  };
-
   // Open course-teacher assignment dialog
   const openCourseTeacherAssignment = async () => {
     if (!selectedSection) return;
     
-    console.log('Opening course-teacher assignment for section:', selectedSection);
-    
     await Promise.all([
       fetchCourseTeacherAssignments(selectedSection._id),
-      fetchUnassignedCourses(selectedSection._id)
+      fetchUnassignedCourses(selectedSection._id),
+      fetchAvailableTeachers(selectedSection.department?._id)
     ]);
     
-    // Don't pre-fetch teachers - they'll be fetched when a course is selected
-    setAvailableTeachers([]);
     setSelectedCourseForTeacher('');
     setSelectedTeacherForCourse('');
     setOpenCourseTeacherDialog(true);
@@ -778,30 +626,7 @@ const SectionManagement = ({ user, token }) => {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => {
-              console.log('Opening create section dialog, current form data:', formData);
-              
-              // Ensure form is reset when opening dialog
-              setFormData({
-                name: '',
-                schoolId: '',
-                departmentId: '',
-                courseId: '',
-                teacherId: '',
-                studentIds: [],
-                capacity: 80,
-                semester: 'Fall',
-                year: new Date().getFullYear()
-              });
-              
-              // Clear dependent state
-              setDepartments([]);
-              setCourses([]);
-              setTeachers([]);
-              setStudents([]);
-              
-              setOpenDialog(true);
-            }}
+            onClick={() => setOpenDialog(true)}
           >
             Create Section
           </Button>
@@ -950,13 +775,6 @@ const SectionManagement = ({ user, token }) => {
                       }}
                     >
                       Details
-                    </Button>
-                    <Button
-                      size="small"
-                      color="primary"
-                      onClick={() => openEditSection(section)}
-                    >
-                      Edit
                     </Button>
                   </CardActions>
                 </Card>
@@ -1447,10 +1265,7 @@ const SectionManagement = ({ user, token }) => {
             </FormControl>
             {availableTeachers.length === 0 && (
               <Typography color="text.secondary" sx={{ mt: 2 }}>
-                {selectedSection?.department ? 
-                  `No teachers available in the ${selectedSection.department.name} department. Please ensure teachers are properly assigned to this department.` :
-                  'No department assigned to this section. Please edit the section to assign a department first.'
-                }
+                No available teachers in this department.
               </Typography>
             )}
           </DialogContent>
@@ -1485,12 +1300,7 @@ const SectionManagement = ({ user, token }) => {
                   <InputLabel>Select Course</InputLabel>
                   <Select
                     value={selectedCourseForTeacher}
-                    onChange={(e) => {
-                      const courseId = e.target.value;
-                      setSelectedCourseForTeacher(courseId);
-                      setSelectedTeacherForCourse(''); // Reset teacher selection
-                      fetchTeachersForCourse(courseId); // Fetch teachers for the selected course
-                    }}
+                    onChange={(e) => setSelectedCourseForTeacher(e.target.value)}
                   >
                     {unassignedCourses.map((course) => (
                       <MenuItem key={course._id} value={course._id}>
@@ -1515,62 +1325,14 @@ const SectionManagement = ({ user, token }) => {
                   >
                     {availableTeachers.map((teacher) => (
                       <MenuItem key={teacher._id} value={teacher._id}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 2 }}>
-                          <Box sx={{ flex: 1 }}>
-                            <Typography variant="body1" fontWeight="medium">
-                              {teacher.name}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {teacher.email}
-                            </Typography>
-                            {teacher.context && (
-                              <Typography variant="caption" color="info.main" sx={{ display: 'block' }}>
-                                {teacher.context}
-                              </Typography>
-                            )}
-                          </Box>
-                          {teacher.roleType && (
-                            <Chip 
-                              label={teacher.roleType.toUpperCase()} 
-                              size="small" 
-                              variant="outlined"
-                              color={
-                                teacher.roleType === 'dean' ? 'error' : 
-                                teacher.roleType === 'hod' ? 'warning' : 'primary'
-                              }
-                            />
-                          )}
-                        </Box>
+                        {teacher.name} ({teacher.email})
                       </MenuItem>
                     ))}
                   </Select>
                 </FormControl>
-                
-                {/* Show instructor summary when available */}
-                {availableTeachers.length > 0 && selectedCourseForTeacher && (
-                  <Box sx={{ mt: 1, p: 1, bgcolor: 'background.default', borderRadius: 1 }}>
-                    <Typography variant="caption" color="primary.main" fontWeight="bold">
-                      Available Instructors: {availableTeachers.length}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      {availableTeachers.filter(t => t.roleType === 'teacher').length} Teachers • {' '}
-                      {availableTeachers.filter(t => t.roleType === 'hod').length} HOD • {' '}
-                      {availableTeachers.filter(t => t.roleType === 'dean').length} Dean
-                    </Typography>
-                  </Box>
-                )}
-                
-                {availableTeachers.length === 0 && selectedCourseForTeacher && (
+                {availableTeachers.length === 0 && (
                   <Typography color="text.secondary" sx={{ mt: 1, fontSize: '0.875rem' }}>
-                    No instructors available for the selected course. The system looks for:
-                    <br />• Teachers from the course's department
-                    <br />• HOD of the course's department  
-                    <br />• Dean of the school
-                  </Typography>
-                )}
-                {availableTeachers.length === 0 && !selectedCourseForTeacher && (
-                  <Typography color="text.secondary" sx={{ mt: 1, fontSize: '0.875rem' }}>
-                    Please select a course first to see available instructors (Teachers + HOD + Dean).
+                    No available teachers in this department.
                   </Typography>
                 )}
               </Grid>
@@ -1785,106 +1547,6 @@ const SectionManagement = ({ user, token }) => {
               disabled={loading || !formData.name || !formData.schoolId}
             >
               {loading ? 'Creating...' : 'Create Section'}
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* Edit Section Dialog */}
-        <Dialog open={openEditDialog} onClose={() => setOpenEditDialog(false)} maxWidth="md" fullWidth>
-          <DialogTitle>Edit Section: {selectedSection?.name}</DialogTitle>
-          <DialogContent>
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Section Name"
-                  value={editFormData.name}
-                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                  placeholder="e.g., Section A, Morning Batch, etc."
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>School *</InputLabel>
-                  <Select
-                    value={editFormData.schoolId}
-                    onChange={(e) => handleEditSchoolChange(e.target.value)}
-                    required
-                  >
-                    {schools.map((school) => (
-                      <MenuItem key={school._id} value={school._id}>
-                        {school.name} ({school.code})
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Department (Optional)</InputLabel>
-                  <Select
-                    value={editFormData.departmentId}
-                    onChange={(e) => setEditFormData({ ...editFormData, departmentId: e.target.value })}
-                    disabled={!editFormData.schoolId}
-                  >
-                    <MenuItem value="">
-                      <em>School-wide Section</em>
-                    </MenuItem>
-                    {departments.map((dept) => (
-                      <MenuItem key={dept._id} value={dept._id}>
-                        {dept.name} ({dept.code})
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Capacity"
-                  type="number"
-                  value={editFormData.capacity}
-                  onChange={(e) => setEditFormData({ ...editFormData, capacity: parseInt(e.target.value) || 80 })}
-                  InputProps={{ inputProps: { min: 1, max: 100 } }}
-                />
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <FormControl fullWidth>
-                  <InputLabel>Semester</InputLabel>
-                  <Select
-                    value={editFormData.semester}
-                    onChange={(e) => setEditFormData({ ...editFormData, semester: e.target.value })}
-                  >
-                    <MenuItem value="Fall">Fall</MenuItem>
-                    <MenuItem value="Spring">Spring</MenuItem>
-                    <MenuItem value="Summer">Summer</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Academic Year"
-                  type="number"
-                  value={editFormData.year}
-                  onChange={(e) => setEditFormData({ ...editFormData, year: parseInt(e.target.value) || new Date().getFullYear() })}
-                  InputProps={{ inputProps: { min: 2020, max: 2030 } }}
-                />
-              </Grid>
-            </Grid>
-            
-            <Alert severity="info" sx={{ mt: 2 }}>
-              Note: Students, courses, and teacher assignments are managed separately through the Details dialog.
-            </Alert>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpenEditDialog(false)}>Cancel</Button>
-            <Button
-              onClick={handleUpdateSection}
-              variant="contained"
-              disabled={loading || !editFormData.name || !editFormData.schoolId}
-            >
-              {loading ? 'Updating...' : 'Update Section'}
             </Button>
           </DialogActions>
         </Dialog>

@@ -10,14 +10,6 @@ export const createSection = async (sectionData, token) => {
   return response.data;
 };
 
-// Update an existing section
-export const updateSection = async (sectionId, sectionData, token) => {
-  const response = await axios.put(`${API_URL}/sections/${sectionId}`, sectionData, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  return response.data;
-};
-
 // Assign teacher to section
 export const assignTeacher = async (sectionId, teacherId, token) => {
   const response = await axios.post(`${API_URL}/sections/assign-teacher`, 

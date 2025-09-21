@@ -59,7 +59,6 @@ const StudentRoutes = ({ user, token }) => {
   {/* Legacy non-unit video routes (maintained for backward compatibility) */}
         <Route path="/course/:courseId/videos" element={<CourseVideos token={token} />} />
         <Route path="/course/:courseId/video/:videoId" element={<VideoPlayer token={token} />} />
-        
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Box>

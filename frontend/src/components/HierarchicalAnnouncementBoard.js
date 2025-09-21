@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
+  Paper,
   Typography,
-  Card,
-  CardContent,
-  CardHeader,
   Button,
   Dialog,
   DialogTitle,
@@ -17,40 +15,32 @@ import {
   MenuItem,
   Checkbox,
   FormControlLabel,
+  ListItemText,
   Chip,
   Grid,
-  Divider,
+  Card,
+  CardHeader,
+  CardContent,
+  CircularProgress,
   Alert,
-  IconButton,
-  Tooltip,
+  Tabs,
+  Tab,
   Badge,
   List,
   ListItem,
-  ListItemText,
-  ListItemIcon,
-  ListItemSecondaryAction,
-  CircularProgress,
-  Paper,
-  Tab,
-  Tabs,
-  Switch
+  Divider
 } from '@mui/material';
 import {
   Add as AddIcon,
-  Announcement as AnnouncementIcon,
+  Person as PersonIcon,
+  Schedule as ScheduleIcon,
+  Public as GlobalIcon,
+  PushPin as PinIcon,
   School as SchoolIcon,
   Business as DepartmentIcon,
-  Group as SectionIcon,
-  Person as PersonIcon,
+  Class as SectionIcon,
   CheckCircle as ApproveIcon,
-  Cancel as RejectIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  History as HistoryIcon,
-  Visibility as ViewIcon,
-  PushPin as PinIcon,
-  Schedule as ScheduleIcon,
-  Language as GlobalIcon
+  Cancel as RejectIcon
 } from '@mui/icons-material';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -736,84 +726,16 @@ const HierarchicalAnnouncementBoard = ({ user }) => {
                 </Grid>
               )}
 
-              {/* Dean recipient type selection for own school */}
-              {user.role === 'dean' && form.targetAudience.targetSchools?.[0] && 
-               targetingOptions.schools?.some(school => school._id === form.targetAudience.targetSchools[0]) && (
-                <Grid item xs={12}>
-                  <Paper sx={{ p: 2, bgcolor: 'background.default' }}>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Select Recipients
-                    </Typography>
-                    
-                    <FormControl fullWidth sx={{ mb: 2 }}>
-                      <InputLabel>Recipient Type</InputLabel>
-                      <Select
-                        value={form.recipientType || ''}
-                        label="Recipient Type"
-                        onChange={(e) => {
-                          const recipientType = e.target.value;
-                          setForm(prev => ({
-                            ...prev,
-                            recipientType,
-                            targetAudience: {
-                              ...prev.targetAudience,
-                              targetDepartments: [],
-                              targetSections: [],
-                              specificUsers: []
-                            }
-                          }));
-                        }}
-                      >
-                        <MenuItem value="students">Students</MenuItem>
-                        <MenuItem value="teachers">Teachers</MenuItem>
-                        <MenuItem value="hods">HODs</MenuItem>
-                        <MenuItem value="all_in_school">All (Students, Teachers, HODs)</MenuItem>
-                      </Select>
-                    </FormControl>
-
-                    {/* Instructions based on recipient type */}
-                    {form.recipientType && (
-                      <Alert severity="info" sx={{ mb: 2 }}>
-                        <Typography variant="body2">
-                          {form.recipientType === 'students' && 'Select department(s) first, then choose specific sections within those departments.'}
-                          {form.recipientType === 'teachers' && 'Select department(s) to target teachers within those departments.'}
-                          {form.recipientType === 'hods' && 'Select department(s) to target the HODs of those departments.'}
-                          {form.recipientType === 'all_in_school' && 'This will send the announcement to all students, teachers, and HODs in your school.'}
-                        </Typography>
-                      </Alert>
-                    )}
-                  </Paper>
-                </Grid>
-              )}
-
-              {/* Department targeting - Enhanced for Dean */}
-              {targetingOptions.departments && targetingOptions.departments.length > 0 && !form.targetAudience.allUsers && !form.targetAudience.isGlobal && 
-               (user.role !== 'dean' || (user.role === 'dean' && form.recipientType && form.recipientType !== 'all_in_school')) && (
+              {/* Department targeting */}
+              {targetingOptions.departments && targetingOptions.departments.length > 0 && !form.targetAudience.allUsers && !form.targetAudience.isGlobal && (
                 <Grid item xs={12}>
                   <FormControl fullWidth>
-                    <InputLabel>
-                      {user.role === 'dean' && form.recipientType === 'students' ? 'Select Departments (for sections)' :
-                       user.role === 'dean' && form.recipientType === 'teachers' ? 'Select Departments (for teachers)' :
-                       user.role === 'dean' && form.recipientType === 'hods' ? 'Select Departments (for HODs)' :
-                       'Target Departments'}
-                    </InputLabel>
+                    <InputLabel>Target Departments</InputLabel>
                     <Select
                       multiple
                       value={form.targetAudience.targetDepartments}
                       label="Target Departments"
-                      onChange={(e) => {
-                        handleTargetingChange('targetDepartments', e.target.value);
-                        // Reset sections when departments change
-                        if (user.role === 'dean' && form.recipientType === 'students') {
-                          setForm(prev => ({
-                            ...prev,
-                            targetAudience: {
-                              ...prev.targetAudience,
-                              targetSections: []
-                            }
-                          }));
-                        }
-                      }}
+                      onChange={(e) => handleTargetingChange('targetDepartments', e.target.value)}
                       renderValue={(selected) => (
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                           {selected.map((value) => {
@@ -834,14 +756,11 @@ const HierarchicalAnnouncementBoard = ({ user }) => {
                 </Grid>
               )}
 
-              {/* Section targeting - Only for students */}
-              {targetingOptions.sections && targetingOptions.sections.length > 0 && !form.targetAudience.allUsers && !form.targetAudience.isGlobal && 
-               (user.role !== 'dean' || (user.role === 'dean' && form.recipientType === 'students' && form.targetAudience.targetDepartments.length > 0)) && (
+              {/* Section targeting */}
+              {targetingOptions.sections && targetingOptions.sections.length > 0 && !form.targetAudience.allUsers && !form.targetAudience.isGlobal && (
                 <Grid item xs={12}>
                   <FormControl fullWidth>
-                    <InputLabel>
-                      {user.role === 'dean' ? 'Select Sections (for students)' : 'Target Sections'}
-                    </InputLabel>
+                    <InputLabel>Target Sections</InputLabel>
                     <Select
                       multiple
                       value={form.targetAudience.targetSections}
