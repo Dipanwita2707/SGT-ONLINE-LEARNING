@@ -80,3 +80,17 @@ export const getTeachersBySearch = async (searchQuery, token) => {
   });
   return res.data;
 };
+
+export const removeVideo = async (videoId, token) => {
+  const res = await axios.delete(`/api/admin/video/${videoId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+};
+
+export const warnVideo = async (videoId, token) => {
+  const res = await axios.patch(`/api/admin/video/${videoId}/warn`, {}, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+};

@@ -134,7 +134,7 @@ const VideoPlayer = ({ video, token }) => {
       <Box sx={{ position: 'relative' }}>
         <video
           ref={videoRef}
-          src={video.videoUrl}
+          src={video.videoUrl || video.videoLink} // Use either videoUrl or videoLink
           controls
           width="100%"
           onTimeUpdate={handleTimeUpdate}
@@ -142,6 +142,10 @@ const VideoPlayer = ({ video, token }) => {
           onPlay={handlePlay}
           onPause={handlePause}
           onEnded={handleEnded}
+          onError={(e) => {
+            console.error('Video failed to load:', video.videoUrl || video.videoLink);
+            console.error('Video object:', video);
+          }}
         />
         <LinearProgress 
           variant="determinate" 

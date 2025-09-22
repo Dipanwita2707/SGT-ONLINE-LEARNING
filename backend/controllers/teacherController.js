@@ -397,7 +397,7 @@ exports.getCourseVideos = async (req, res) => {
 exports.uploadCourseVideo = async (req, res) => {
   try {
     const { courseId } = req.params;
-    const { title, description, unitId } = req.body;
+    const { title, description, unitId, videoLink } = req.body;
     
     // Verify teacher is assigned to a section that contains this course
     const teacherHasCourse = await Section.exists({ teacher: req.user._id, courses: courseId });
@@ -409,8 +409,9 @@ exports.uploadCourseVideo = async (req, res) => {
       return res.status(404).json({ message: 'Course not found' });
     }
     
-    if (!req.file) {
-      return res.status(400).json({ message: 'No video file uploaded' });
+    // Validate that either file or videoLink is provided
+    if (!req.file && !videoLink) {
+      return res.status(400).json({ message: 'Either video file or video link must be provided' });
     }
     
     // Check if units exist for this course
@@ -421,14 +422,27 @@ exports.uploadCourseVideo = async (req, res) => {
     }
     
     // Create video entry in database
-    const video = new Video({
+    const videoData = {
       title,
       description,
       course: courseId,
       teacher: req.user._id,
-      videoUrl: `/uploads/${req.file.filename}`,
       duration: 0 // This would be calculated properly in a real implementation
-    });
+    };
+    
+    if (videoLink && !req.file) {
+      // Video link provided
+      videoData.videoLink = videoLink;
+      videoData.videoType = 'link';
+    } else if (req.file && !videoLink) {
+      // File uploaded
+      videoData.videoUrl = `/uploads/${req.file.filename}`;
+      videoData.videoType = 'upload';
+    } else {
+      return res.status(400).json({ message: 'Provide either video file OR video link, not both' });
+    }
+    
+    const video = new Video(videoData);
     
     // If unitId is provided, associate the video with that unit
     if (unitId && mongoose.Types.ObjectId.isValid(unitId)) {

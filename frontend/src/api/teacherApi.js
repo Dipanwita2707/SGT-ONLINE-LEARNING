@@ -75,23 +75,48 @@ export const getCourseVideos = async (courseId, token) => {
 
 // New API functions for teacher functionality
 export const uploadCourseVideo = async (courseId, videoData, token) => {
-  const formData = new FormData();
-  formData.append('video', videoData.file);
-  formData.append('title', videoData.title);
-  formData.append('description', videoData.description);
-  
-  // Include unitId if provided
-  if (videoData.unitId) {
-    formData.append('unitId', videoData.unitId);
-  }
-  
-  const res = await axios.post(`/api/teacher/course/${courseId}/video`, formData, {
-    headers: { 
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'multipart/form-data'
+  if (videoData.videoType === 'link') {
+    // For video links, send JSON data
+    const payload = {
+      title: videoData.title,
+      description: videoData.description || '',
+      videoLink: videoData.videoLink,
+      videoType: videoData.videoType
+    };
+    
+    // Include unitId if provided
+    if (videoData.unitId) {
+      payload.unitId = videoData.unitId;
     }
-  });
-  return res.data;
+    
+    const res = await axios.post(`/api/teacher/course/${courseId}/video`, payload, {
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return res.data;
+  } else {
+    // For file uploads, use FormData
+    const formData = new FormData();
+    formData.append('video', videoData.file);
+    formData.append('title', videoData.title);
+    formData.append('description', videoData.description);
+    formData.append('videoType', videoData.videoType || 'upload');
+    
+    // Include unitId if provided
+    if (videoData.unitId) {
+      formData.append('unitId', videoData.unitId);
+    }
+    
+    const res = await axios.post(`/api/teacher/course/${courseId}/video`, formData, {
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return res.data;
+  }
 };
 
 export const requestVideoRemoval = async (videoId, reason, token) => {

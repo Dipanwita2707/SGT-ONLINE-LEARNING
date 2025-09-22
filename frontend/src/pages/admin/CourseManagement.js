@@ -1,5 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { 
+  getCourses,
+  getCourseVideos,
+  createCourse,
+  editCourse,
+  deleteCourse,
+  assignCourseToTeacher,
+  bulkAssignCourses,
+  bulkUploadCourses,
+  removeVideo,
+  warnVideo
+} from '../../api/courseApi';
+import { 
   Typography, 
   Paper, 
   CircularProgress, 
@@ -17,7 +29,11 @@ import {
   CardHeader,
   IconButton,
   Tooltip,
-  Fade
+  Fade,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import CourseForm from '../../components/admin/CourseForm';
 import CourseTable from '../../components/admin/CourseTable';
@@ -27,16 +43,7 @@ import VideoTable from '../../components/admin/VideoTable';
 import VideoUploadDialog from '../../components/admin/VideoUploadDialog';
 import BulkAssignCourses from '../../components/admin/BulkAssignCourses';
 import BulkUploadCourses from '../../components/admin/BulkUploadCourses';
-import {
-  getCourses,
-  createCourse,
-  editCourse,
-  deleteCourse,
-  assignCourseToTeacher,
-  bulkAssignCourses,
-  bulkUploadCourses
-} from '../../api/courseApi';
-import { uploadVideo, removeVideo, warnVideo } from '../../api/videoApi';
+import { uploadVideo } from '../../api/videoApi';
 import AddIcon from '@mui/icons-material/Add';
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary';
 import SchoolIcon from '@mui/icons-material/School';
@@ -73,7 +80,9 @@ const CourseManagement = () => {
   const [snackbar, setSnackbar] = useState('');
   const [editCourseId, setEditCourseId] = useState(null);
   const [assignDialog, setAssignDialog] = useState({ open: false, courseId: null });
-  const [videos, setVideos] = useState([]); // For demo, videos can be fetched per course if needed
+  const [videos, setVideos] = useState([]);
+  const [selectedCourseForVideos, setSelectedCourseForVideos] = useState('');
+  const [videosLoading, setVideosLoading] = useState(false);
   const [uploadDialog, setUploadDialog] = useState(false);
   const [tabValue, setTabValue] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
@@ -180,9 +189,33 @@ const CourseManagement = () => {
       await uploadVideo(videoData, token, setProgress);
       setSnackbar('Video uploaded successfully');
       setUploadDialog(false);
-      // Optionally refresh video list
+      // Refresh video list if the uploaded video belongs to the currently selected course
+      if (selectedCourseForVideos && data.courseId === selectedCourseForVideos) {
+        fetchVideos(selectedCourseForVideos);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to upload video');
+    }
+  };
+
+  // Fetch videos for selected course
+  const fetchVideos = async (courseId) => {
+    if (!courseId) {
+      setVideos([]);
+      return;
+    }
+    
+    setVideosLoading(true);
+    try {
+      const videoData = await getCourseVideos(courseId, token);
+      console.log('API Response:', videoData); // Debug log
+      setVideos(videoData || []); // Fixed: videoData is already the array
+    } catch (err) {
+      console.error('Fetch videos error:', err); // Debug log
+      setError(err.response?.data?.message || 'Failed to fetch videos');
+      setVideos([]);
+    } finally {
+      setVideosLoading(false);
     }
   };
 
@@ -190,6 +223,10 @@ const CourseManagement = () => {
     try {
       await removeVideo(id, token);
       setSnackbar('Video removed successfully');
+      // Refresh the videos list after successful deletion
+      if (selectedCourseForVideos) {
+        fetchVideos(selectedCourseForVideos);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to remove video');
     }
@@ -199,6 +236,10 @@ const CourseManagement = () => {
     try {
       await warnVideo(id, token);
       setSnackbar('Video warned successfully');
+      // Refresh the videos list to show updated warning status
+      if (selectedCourseForVideos) {
+        fetchVideos(selectedCourseForVideos);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to warn video');
     }
@@ -378,26 +419,77 @@ const CourseManagement = () => {
               Course Videos
             </Typography>
             <Typography variant="body2" gutterBottom sx={{ mb: 3 }}>
-              Manage videos associated with your courses. You can upload new videos or manage existing ones.
+              Manage videos associated with your courses. Select a course to view and manage its videos.
             </Typography>
             
+            {/* Course Selection */}
             <Box sx={{ mb: 3 }}>
+              <FormControl fullWidth sx={{ mb: 2, maxWidth: 400 }}>
+                <InputLabel>Select Course</InputLabel>
+                <Select
+                  value={selectedCourseForVideos}
+                  onChange={(e) => {
+                    setSelectedCourseForVideos(e.target.value);
+                    fetchVideos(e.target.value);
+                  }}
+                  label="Select Course"
+                >
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
+                  {courses.map((course) => (
+                    <MenuItem key={course._id} value={course._id}>
+                      {course.courseCode} - {course.title}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              
               <Button 
                 variant="contained" 
                 color="primary" 
                 startIcon={<CloudUploadIcon />}
                 onClick={() => setUploadDialog(true)}
+                disabled={!selectedCourseForVideos}
+                sx={{ ml: 2 }}
               >
                 Upload New Video
               </Button>
             </Box>
             
-            <VideoTable
-              videos={videos}
-              onRemove={handleRemoveVideo}
-              onWarn={handleWarnVideo}
-              onEdit={() => {}}
-            />
+            {/* Videos Display */}
+            {videosLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : selectedCourseForVideos ? (
+              videos.length > 0 ? (
+                <VideoTable
+                  videos={videos}
+                  onRemove={handleRemoveVideo}
+                  onWarn={handleWarnVideo}
+                  onEdit={() => {}}
+                />
+              ) : (
+                <Box sx={{ textAlign: 'center', mt: 4, p: 3, bgcolor: 'grey.50', borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom>
+                    No videos found
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    This course doesn't have any videos yet. Click "Upload New Video" to add one.
+                  </Typography>
+                </Box>
+              )
+            ) : (
+              <Box sx={{ textAlign: 'center', mt: 4, p: 3, bgcolor: 'grey.50', borderRadius: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  Select a Course
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Please select a course from the dropdown above to view and manage its videos.
+                </Typography>
+              </Box>
+            )}
             
             <VideoUploadDialog
               open={uploadDialog}

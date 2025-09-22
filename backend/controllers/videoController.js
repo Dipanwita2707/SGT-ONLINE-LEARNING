@@ -38,9 +38,27 @@ const getVideoDuration = async (filePath) => {
 // Upload video
 exports.uploadVideo = async (req, res) => {
   try {
-    const { title, description, courseId, unitId } = req.body;
-    if (!title || !courseId || !req.file) {
-      return res.status(400).json({ message: 'Title, course ID, and video file are required' });
+    const { title, description, courseId, unitId, videoLink, videoType } = req.body;
+    
+    // Validate required fields
+    if (!title || !courseId) {
+      return res.status(400).json({ message: 'Title and course ID are required' });
+    }
+    
+    // Validate that either file or videoLink is provided based on videoType
+    if (videoType === 'link') {
+      if (!videoLink) {
+        return res.status(400).json({ message: 'Video link is required for link uploads' });
+      }
+    } else {
+      if (!req.file) {
+        return res.status(400).json({ message: 'Video file is required for file uploads' });
+      }
+    }
+    
+    // Validate that we don't have both file and link
+    if (req.file && videoLink) {
+      return res.status(400).json({ message: 'Provide either video file OR video link, not both' });
     }
     
     // Find the course to validate it exists
@@ -63,26 +81,33 @@ exports.uploadVideo = async (req, res) => {
       teacherId = course.teachers[0];
     }
     
-    const videoUrl = req.file.path.replace(/\\/g, '/');
-    
-    // Try to get video duration
-    let duration = null;
-    try {
-      duration = await getVideoDuration(videoUrl);
-    } catch (err) {
-      console.error('Error getting video duration:', err);
-      // Continue without duration
-    }
-    
-    // Create video document
+    // Create video document - handle both file upload and video link
     const videoData = { 
       title, 
       description, 
       course: courseId, 
-      teacher: teacherId, 
-      videoUrl,
-      duration
+      teacher: teacherId
     };
+    
+    if (videoType === 'link' || (!req.file && videoLink)) {
+      // Video link provided
+      videoData.videoLink = videoLink;
+      videoData.videoType = 'link';
+    } else {
+      // File uploaded
+      const videoUrl = req.file.path.replace(/\\/g, '/');
+      videoData.videoUrl = videoUrl;
+      videoData.videoType = 'upload';
+      
+      // Try to get video duration for uploaded files
+      try {
+        const duration = await getVideoDuration(videoUrl);
+        if (duration) videoData.duration = duration;
+      } catch (err) {
+        console.error('Error getting video duration:', err);
+        // Continue without duration
+      }
+    }
     
     // If unitId is provided, associate the video with that unit
     if (unitId && mongoose.Types.ObjectId.isValid(unitId)) {
@@ -191,9 +216,19 @@ exports.removeVideo = async (req, res) => {
   try {
     const video = await Video.findById(req.params.id);
     if (!video) return res.status(404).json({ message: 'Video not found' });
-    fs.unlinkSync(video.videoUrl);
+    
+    // Only try to delete file if it's an uploaded video with a local file path
+    if (video.videoUrl && !video.videoUrl.startsWith('http')) {
+      try {
+        fs.unlinkSync(video.videoUrl);
+      } catch (fileErr) {
+        console.warn(`Could not delete file: ${video.videoUrl}`, fileErr.message);
+        // Continue with database deletion even if file deletion fails
+      }
+    }
+    
     await Video.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Video removed' });
+    res.json({ message: 'Video removed successfully' });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }

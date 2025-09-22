@@ -408,7 +408,7 @@ exports.getCourseVideos = async (req, res) => {
         .sort('order')
         .populate({
           path: 'videos',
-          select: 'title description videoUrl teacher duration sequence unit',
+          select: 'title description videoUrl videoLink videoType teacher duration sequence unit',
           populate: {
             path: 'teacher',
             select: 'name'
@@ -438,11 +438,26 @@ exports.getCourseVideos = async (req, res) => {
             const lastWatched = watchRecord ? watchRecord.lastWatched : null;
             const watched = (video.duration && video.duration > 0 && timeSpent >= video.duration * 0.9) ||
                     ((!video.duration || video.duration < 1) && timeSpent >= 5);
+            const actualVideoUrl = video.videoLink || video.videoUrl; // Use videoLink first, then videoUrl
+            
+            // Debug logging for URL processing
+            console.log(`🎥 Processing video: ${video.title}`);
+            console.log(`   Original videoUrl: ${video.videoUrl}`);
+            console.log(`   Original videoLink: ${video.videoLink}`);
+            console.log(`   VideoType: ${video.videoType}`);
+            console.log(`   Calculated actualVideoUrl: ${actualVideoUrl}`);
+            console.log(`   Starts with http?: ${actualVideoUrl && actualVideoUrl.startsWith('http')}`);
+            
+            const processedVideoUrl = actualVideoUrl && actualVideoUrl.startsWith('http') ? actualVideoUrl : `${req.protocol}://${req.get('host')}/${(actualVideoUrl || '').replace(/\\/g, '/')}`;
+            console.log(`   Final processed videoUrl: ${processedVideoUrl}`);
+            
             return {
               _id: video._id,
               title: video.title,
               description: video.description,
-              videoUrl: video.videoUrl && video.videoUrl.startsWith('http') ? video.videoUrl : `${req.protocol}://${req.get('host')}/${(video.videoUrl || '').replace(/\\/g, '/')}`,
+              videoUrl: processedVideoUrl,
+              videoLink: video.videoLink, // Include videoLink for frontend
+              videoType: video.videoType, // Include videoType for frontend
               duration: video.duration || 0,
               teacher: video.teacher,
               sequence: video.sequence,
@@ -506,6 +521,7 @@ exports.getCourseVideos = async (req, res) => {
       // Fetch all videos for this course
       const videos = await Video.find({ course: courseId })
         .populate('teacher', 'name')
+        .select('title description videoUrl videoLink videoType teacher duration sequence')
         .sort('createdAt');
 
       // Add watch history info only for unlocked videos
@@ -519,11 +535,26 @@ exports.getCourseVideos = async (req, res) => {
           const lastWatched = watchRecord ? watchRecord.lastWatched : null;
           const watched = (video.duration && video.duration > 0 && timeSpent >= video.duration * 0.9) ||
                   ((!video.duration || video.duration < 1) && timeSpent >= 5);
+          const actualVideoUrl = video.videoLink || video.videoUrl; // Use videoLink first, then videoUrl
+          
+          // Debug logging for URL processing
+          console.log(`🎥 Processing non-unit video: ${video.title}`);
+          console.log(`   Original videoUrl: ${video.videoUrl}`);
+          console.log(`   Original videoLink: ${video.videoLink}`);
+          console.log(`   VideoType: ${video.videoType}`);
+          console.log(`   Calculated actualVideoUrl: ${actualVideoUrl}`);
+          console.log(`   Starts with http?: ${actualVideoUrl && actualVideoUrl.startsWith('http')}`);
+          
+          const processedVideoUrl = actualVideoUrl && actualVideoUrl.startsWith('http') ? actualVideoUrl : `${req.protocol}://${req.get('host')}/${(actualVideoUrl || '').replace(/\\/g, '/')}`;
+          console.log(`   Final processed videoUrl: ${processedVideoUrl}`);
+          
           return {
             _id: video._id,
             title: video.title,
             description: video.description,
-            videoUrl: video.videoUrl && video.videoUrl.startsWith('http') ? video.videoUrl : `${req.protocol}://${req.get('host')}/${(video.videoUrl || '').replace(/\\/g, '/')}`,
+            videoUrl: processedVideoUrl,
+            videoLink: video.videoLink, // Include videoLink for frontend
+            videoType: video.videoType, // Include videoType for frontend
             duration: video.duration || 0,
             teacher: video.teacher,
             timeSpent,
