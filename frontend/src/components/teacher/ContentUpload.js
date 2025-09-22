@@ -16,7 +16,11 @@ import {
   Tabs,
   Tab,
   Divider,
-  FormHelperText
+  FormHelperText,
+  FormLabel,
+  RadioGroup,
+  FormControlLabel,
+  Radio
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import QuizIcon from '@mui/icons-material/Quiz';
@@ -36,6 +40,8 @@ const ContentUpload = ({ token, user }) => {
   const [videoTitle, setVideoTitle] = useState('');
   const [videoDescription, setVideoDescription] = useState('');
   const [videoFileName, setVideoFileName] = useState('');
+  const [videoLink, setVideoLink] = useState('');
+  const [videoUploadType, setVideoUploadType] = useState('file');
   
   // Quiz upload state
   const [quizFile, setQuizFile] = useState(null);
@@ -151,8 +157,13 @@ const ContentUpload = ({ token, user }) => {
       return;
     }
     
-    if (!videoFile) {
+    if (videoUploadType === 'file' && !videoFile) {
       setError('Please select a video file to upload');
+      return;
+    }
+    
+    if (videoUploadType === 'link' && !videoLink.trim()) {
+      setError('Please enter a video link');
       return;
     }
     
@@ -166,17 +177,27 @@ const ContentUpload = ({ token, user }) => {
       setError('');
       setSuccess('');
       
-      await uploadCourseVideo(selectedCourse, {
-        file: videoFile,
+      const uploadData = {
         title: videoTitle,
-        description: videoDescription
-      }, token);
+        description: videoDescription,
+        videoType: videoUploadType
+      };
+      
+      if (videoUploadType === 'file') {
+        uploadData.file = videoFile;
+      } else {
+        uploadData.videoLink = videoLink;
+      }
+      
+      await uploadCourseVideo(selectedCourse, uploadData, token);
       
       // Clear form after successful upload
       setVideoFile(null);
       setVideoTitle('');
       setVideoDescription('');
       setVideoFileName('');
+      setVideoLink('');
+      setVideoUploadType('file');
       
       setSuccess('Video uploaded successfully!');
     } catch (err) {
@@ -331,43 +352,84 @@ const ContentUpload = ({ token, user }) => {
               </Grid>
               
               <Grid item xs={12}>
-                <Box sx={{ mb: 2 }}>
-                  <input
-                    accept="video/*"
-                    style={{ display: 'none' }}
-                    id="video-upload"
-                    type="file"
-                    onChange={handleVideoFileChange}
-                    disabled={loading}
-                  />
-                  <label htmlFor="video-upload">
-                    <Button
-                      variant="outlined"
-                      component="span"
-                      startIcon={<CloudUploadIcon />}
-                      sx={{ mb: 1 }}
-                      disabled={loading}
-                    >
-                      Select Video File
-                    </Button>
-                  </label>
-                  {videoFileName && (
-                    <Typography variant="body2" sx={{ mt: 1 }}>
-                      Selected file: {videoFileName}
-                    </Typography>
-                  )}
-                </Box>
+                <FormControl component="fieldset">
+                  <FormLabel component="legend">Video Source</FormLabel>
+                  <RadioGroup
+                    row
+                    value={videoUploadType}
+                    onChange={(e) => {
+                      setVideoUploadType(e.target.value);
+                      // Reset file and videoLink when switching
+                      if (e.target.value === 'file') {
+                        setVideoLink('');
+                      } else {
+                        setVideoFile(null);
+                        setVideoFileName('');
+                      }
+                    }}
+                  >
+                    <FormControlLabel value="file" control={<Radio />} label="Upload File" />
+                    <FormControlLabel value="link" control={<Radio />} label="Video Link" />
+                  </RadioGroup>
+                </FormControl>
               </Grid>
+              
+              {videoUploadType === 'file' ? (
+                <Grid item xs={12}>
+                  <Box sx={{ mb: 2 }}>
+                    <input
+                      accept="video/*"
+                      style={{ display: 'none' }}
+                      id="video-upload"
+                      type="file"
+                      onChange={handleVideoFileChange}
+                      disabled={loading}
+                    />
+                    <label htmlFor="video-upload">
+                      <Button
+                        variant="outlined"
+                        component="span"
+                        startIcon={<CloudUploadIcon />}
+                        sx={{ mb: 1 }}
+                        disabled={loading}
+                      >
+                        Select Video File
+                      </Button>
+                    </label>
+                    {videoFileName && (
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        Selected file: {videoFileName}
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
+              ) : (
+                <Grid item xs={12}>
+                  <TextField
+                    label="Video Link (YouTube, Vimeo, etc.)"
+                    fullWidth
+                    value={videoLink}
+                    onChange={(e) => setVideoLink(e.target.value)}
+                    disabled={loading}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    helperText="Enter a direct video URL or embed link"
+                  />
+                </Grid>
+              )}
               
               <Grid item xs={12}>
                 <Button
                   type="submit"
                   variant="contained"
                   color="primary"
-                  disabled={loading || !videoFile}
+                  disabled={
+                    loading || 
+                    (videoUploadType === 'file' && !videoFile) ||
+                    (videoUploadType === 'link' && !videoLink.trim())
+                  }
                   startIcon={loading ? <CircularProgress size={20} /> : <CloudUploadIcon />}
                 >
-                  {loading ? 'Uploading...' : 'Upload Video'}
+                  {loading ? (videoUploadType === 'file' ? 'Uploading...' : 'Adding...') : (videoUploadType === 'file' ? 'Upload Video' : 'Add Video Link')}
                 </Button>
               </Grid>
             </Grid>

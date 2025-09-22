@@ -8,14 +8,11 @@ import {
   Typography
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import TeacherVideoPlayer from './TeacherVideoPlayer';
+import EnhancedTeacherVideoPlayer from './EnhancedTeacherVideoPlayer';
 import { formatVideoUrl } from '../../utils/videoUtils';
 
 const TeacherVideoDialog = ({ open, onClose, video }) => {
   if (!video) return null;
-  
-  // Format the video URL to ensure it's correct
-  const videoUrl = formatVideoUrl(video.videoUrl);
 
   return (
     <Dialog 
@@ -57,8 +54,10 @@ const TeacherVideoDialog = ({ open, onClose, video }) => {
         )}
         
         <Box sx={{ width: '100%' }}>
-          <TeacherVideoPlayer 
-            videoUrl={videoUrl} 
+          <EnhancedTeacherVideoPlayer 
+            videoUrl={video.videoUrl}
+            videoType={video.videoType}
+            videoLink={video.videoLink}
             title={video.title} 
           />
         </Box>

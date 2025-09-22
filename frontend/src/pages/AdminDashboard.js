@@ -144,7 +144,6 @@ const AdminDashboard = () => {
   };
 
   return (
-    <>
     <Box sx={{ 
       display: 'flex', 
       flexDirection: 'column',
@@ -159,7 +158,6 @@ const AdminDashboard = () => {
         overflow: 'hidden'
       }}>
         <Sidebar currentUser={currentUser} />
-        
         {/* Full-width Fixed Header */}
         <Box sx={{ 
           position: 'fixed', 
@@ -168,271 +166,153 @@ const AdminDashboard = () => {
           right: 0, 
           zIndex: 1400,
           height: 64,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        backdropFilter: 'blur(10px)',
-        borderBottom: '1px solid',
-        borderColor: 'divider',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-        px: 3
-      }}>
-        {/* Left side - Logo/Title */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <DashboardIcon sx={{ fontSize: 32, color: 'primary.main' }} />
-          <Typography variant="h5" component="h1" sx={{ fontWeight: 600, color: 'primary.main' }}>
-            Admin Dashboard
-          </Typography>
-        </Box>
-        
-        {/* Right side - Notifications and Profile */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <NotificationBell token={token} />
-          <Tooltip title="Account">
-            <IconButton 
-              onClick={handleUserMenuOpen}
-              size="medium"
-              sx={{ 
-                bgcolor: 'primary.main', 
-                color: 'white',
-                width: 44,
-                height: 44,
-                '&:hover': { 
-                  bgcolor: 'primary.dark',
-                  transform: 'scale(1.05)',
-                  boxShadow: theme.shadows[4]
-                },
-                transition: 'all 0.2s ease-in-out'
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+          px: 3
+        }}>
+          {/* Left side - Logo/Title */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <DashboardIcon sx={{ fontSize: 32, color: 'primary.main' }} />
+            <Typography variant="h5" component="h1" sx={{ fontWeight: 600, color: 'primary.main' }}>
+              Admin Dashboard
+            </Typography>
+          </Box>
+          {/* Right side - Notifications and Profile */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <NotificationBell token={token} />
+            <Tooltip title="Account">
+              <IconButton 
+                onClick={handleUserMenuOpen}
+                size="medium"
+                sx={{ 
+                  bgcolor: 'primary.main', 
+                  color: 'white',
+                  width: 44,
+                  height: 44,
+                  '&:hover': { 
+                    bgcolor: 'primary.dark',
+                    transform: 'scale(1.05)',
+                    boxShadow: theme.shadows[4]
+                  },
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                <AccountCircleIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          <Menu
+            anchorEl={userMenuAnchor}
+            open={Boolean(userMenuAnchor)}
+            onClose={handleUserMenuClose}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+            PaperProps={{
+              sx: {
+                bgcolor: 'background.paper',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 2,
+                boxShadow: theme.shadows[8],
+                minWidth: 120
+              }
+            }}
+          >
+            <MenuItem 
+              onClick={handleProfileOpen}
+              sx={{
+                color: 'text.primary',
+                '&:hover': {
+                  bgcolor: 'action.hover'
+                }
               }}
             >
-              <AccountCircleIcon />
-            </IconButton>
-          </Tooltip>
+              <PersonIcon fontSize="small" sx={{ mr: 1, color: 'primary.main' }} />
+              My Profile
+            </MenuItem>
+            <MenuItem 
+              onClick={handleLogout}
+              sx={{
+                color: 'text.primary',
+                '&:hover': {
+                  bgcolor: 'action.hover'
+                }
+              }}
+            >
+              <LogoutIcon fontSize="small" sx={{ mr: 1, color: 'error.main' }} />
+              Logout
+            </MenuItem>
+          </Menu>
         </Box>
-        <Menu
-          anchorEl={userMenuAnchor}
-          open={Boolean(userMenuAnchor)}
-          onClose={handleUserMenuClose}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'right',
-          }}
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'right',
-          }}
-          PaperProps={{
-            sx: {
-              bgcolor: 'background.paper',
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 2,
-              boxShadow: theme.shadows[8],
-              minWidth: 120
-            }
+        {/* End Header */}
+        <Box 
+          component="main" 
+          sx={{ 
+            flexGrow: 1,
+            pt: 10, // Add top padding to account for fixed header (64px + margin)
+            pl: 3,
+            pr: 3,
+            pb: 3,
+            background: 'transparent' // Ensure no background color
           }}
         >
-          <MenuItem 
-            onClick={handleProfileOpen}
-            sx={{
-              color: 'text.primary',
-              '&:hover': {
-                bgcolor: 'action.hover'
-              }
-            }}
-          >
-            <PersonIcon fontSize="small" sx={{ mr: 1, color: 'primary.main' }} />
-            My Profile
-          </MenuItem>
-          <MenuItem 
-            onClick={handleLogout}
-            sx={{
-              color: 'text.primary',
-              '&:hover': {
-                bgcolor: 'action.hover'
-              }
-            }}
-          >
-            <LogoutIcon fontSize="small" sx={{ mr: 1, color: 'error.main' }} />
-            Logout
-          </MenuItem>
-        </Menu>
-      </Box>
-      
-      <Box 
-        component="main" 
-        sx={{ 
-          flexGrow: 1,
-          pt: 10, // Add top padding to account for fixed header (64px + margin)
-          pl: 3,
-          pr: 3,
-          pb: 3,
-          background: 'transparent' // Ensure no background color
-        }}
-      >
-        {isOnMainDashboard && (
-          <>
+          {isOnMainDashboard && (
             <Grid container spacing={3}>
               {/* Notifications Section */}
               <Grid item xs={12} md={6} lg={4}>
-                <Card sx={{
-                  bgcolor: 'rgba(255, 255, 255, 0.9)',
-                  backdropFilter: 'blur(10px)',
-                  borderRadius: 3,
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)'
-                  }
-                }}>
-                  <CardHeader
-                    avatar={<Avatar sx={{ bgcolor: 'primary.main' }}><NotificationsActiveIcon /></Avatar>}
-                    action={<IconButton onClick={() => navigate('/admin/notifications')}><OpenInNewIcon /></IconButton>}
-                    title="Notifications"
-                    subheader={`${Array.isArray(notifications) ? notifications.length : 0} active notifications`}
-                  />
-                  <Divider />
-                  <CardContent sx={{ height: 300, overflow: 'auto', p: 0 }}>
-                    <List dense>
-                      {notificationsLoading ? (
-                        <ListItem><ListItemText primary="Loading..." /></ListItem>
-                      ) : (Array.isArray(notifications) && notifications.length === 0) ? (
-                        <ListItem><ListItemText primary="No notifications" /></ListItem>
-                      ) : (
-                        Array.isArray(notifications) && notifications.map((n) => (
-                          <ListItem key={n._id}>
-                            <ListItemText
-                              primary={n.message}
-                              secondary={new Date(n.createdAt).toLocaleString()}
-                            />
-                          </ListItem>
-                        ))
-                      )}
-                    </List>
-                  </CardContent>
-                </Card>
+                {/* ...existing code... */}
               </Grid>
-              
               {/* Activity Feed Section */}
               <Grid item xs={12} md={6} lg={4}>
-                <Card sx={{
-                  bgcolor: 'rgba(255, 255, 255, 0.9)',
-                  backdropFilter: 'blur(10px)',
-                  borderRadius: 3,
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)'
-                  }
-                }}>
-                  <CardHeader
-                    avatar={<Avatar sx={{ bgcolor: 'success.main' }}><EventNoteIcon /></Avatar>}
-                    action={<IconButton><OpenInNewIcon /></IconButton>}
-                    title="Recent Activity"
-                    subheader={`${Array.isArray(activity) ? activity.length : 0} recent actions`}
-                  />
-                  <Divider />
-                  <CardContent sx={{ height: 300, overflow: 'auto', p: 2,m:1 }}>
-                    <List dense>
-                      {activityLoading ? (
-                        <ListItem><ListItemText primary="Loading..." /></ListItem>
-                      ) : (Array.isArray(activity) && activity.length === 0) ? (
-                        <ListItem><ListItemText primary="No recent activity" /></ListItem>
-                      ) : (
-                        Array.isArray(activity) && activity.map((a) => (
-                          <ListItem key={a._id}>
-                            <ListItemText
-                              primary={`${a.action} by ${a.performedBy?.email || 'System'}`}
-                              secondary={new Date(a.createdAt).toLocaleString()}
-                            />
-                          </ListItem>
-                        ))
-                      )}
-                    </List>
-                  </CardContent>
-                </Card>
+                {/* ...existing code... */}
               </Grid>
-              
               {/* Forum Activity Section */}
               <Grid item xs={12} md={6} lg={4}>
-                <Card sx={{
-                  bgcolor: 'rgba(255, 255, 255, 0.9)',
-                  backdropFilter: 'blur(10px)',
-                  borderRadius: 3,
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)'
-                  }
-                }}>
-                  <CardHeader
-                    title="Forum Activity - REMOVED"
-                    subheader="Forum functionality has been removed from the system"
-                  />
-                  <Divider />
-                  <CardContent sx={{ height: 300, overflow: 'auto', p: 0 }}>
-                    <List dense>
-                      {forumLoading ? (
-                        <ListItem><ListItemText primary="Loading..." /></ListItem>
-                      ) : (Array.isArray(forumActivity) && forumActivity.length === 0) ? (
-                        <ListItem><ListItemText primary="No recent forum activity" /></ListItem>
-                      ) : (
-                        Array.isArray(forumActivity) && forumActivity.map((item, index) => (
-                          <ListItem key={index}>
-                            <ListItemText
-                              primary={`${item.action} in ${item.forumTitle}`}
-                              secondary={`${item.userName} (${item.userRole}) - ${new Date(item.timestamp).toLocaleString()}`}
-                            />
-                          </ListItem>
-                        ))
-                      )}
-                    </List>
-                  </CardContent>
-                </Card>
+                {/* ...existing code... */}
               </Grid>
             </Grid>
-          </>
-        )}
-      
-        <Box sx={{ mt: isOnMainDashboard ? 4 : 0 }}>
-          <Routes>
-            <Route path="analytics" element={<AnalyticsDashboard />} />
-            <Route path="unlock-requests" element={<UnlockRequests />} />
-            <Route path="teachers" element={<TeacherManagement currentUser={currentUser} />} />
-            <Route path="students" element={<StudentManagement currentUser={currentUser} />} />
-            <Route path="courses" element={<CourseManagement currentUser={currentUser} />} />
-            <Route path="schools" element={<SchoolManagement />} />
-            <Route path="departments" element={<DepartmentManagement />} />
-            <Route path="sections" element={<SectionManagement user={currentUser} token={token} />} />
-            <Route path="deans" element={<DeanManagement />} />
-            <Route path="hods" element={<HODManagement />} />
-            <Route path="enhanced-analytics" element={<EnhancedAnalytics />} />
-            {/* Forum route removed */}
-            {/* <Route path="forum/*" element={<ForumModeration currentUser={currentUser} />} /> - REMOVED */}
-            <Route path="announcements" element={<AnnouncementPage role="admin" />} />
-            {currentUser?.role === 'admin' && <Route path="roles" element={<RoleManagement />} />}
-            <Route path="*" element={<Navigate to="/admin" />} />
-          </Routes>
+          )}
+          <Box sx={{ mt: isOnMainDashboard ? 4 : 0 }}>
+            <Routes>
+              <Route path="analytics" element={<AnalyticsDashboard />} />
+              <Route path="unlock-requests" element={<UnlockRequests />} />
+              <Route path="teachers" element={<TeacherManagement currentUser={currentUser} />} />
+              <Route path="students" element={<StudentManagement currentUser={currentUser} />} />
+              <Route path="courses" element={<CourseManagement currentUser={currentUser} />} />
+              <Route path="schools" element={<SchoolManagement />} />
+              <Route path="departments" element={<DepartmentManagement />} />
+              <Route path="sections" element={<SectionManagement user={currentUser} token={token} />} />
+              <Route path="deans" element={<DeanManagement />} />
+              <Route path="hods" element={<HODManagement />} />
+              <Route path="enhanced-analytics" element={<EnhancedAnalytics />} />
+              {/* Forum route removed */}
+              {/* <Route path="forum/*" element={<ForumModeration currentUser={currentUser} />} /> - REMOVED */}
+              <Route path="announcements" element={<AnnouncementPage role="admin" />} />
+              {currentUser?.role === 'admin' && <Route path="roles" element={<RoleManagement />} />}
+              <Route path="*" element={<Navigate to="/admin" />} />
+            </Routes>
+          </Box>
         </Box>
       </Box>
-      </Box>
-      
       <Footer />
+      <ProfileDialog 
+        open={profileDialogOpen}
+        onClose={handleProfileClose}
+        user={currentUser}
+      />
     </Box>
-    
-    <ProfileDialog 
-      open={profileDialogOpen}
-      onClose={handleProfileClose}
-      user={currentUser}
-    />
-  </>
   );
 };
 

@@ -131,8 +131,20 @@ router.post('/course/:id/assign-teacher', async (req, res) => {
 	}
 });
 
-// Video management
-router.post('/video/upload', upload.single('file'), videoController.uploadVideo);
+// Video management - conditional middleware for file upload
+const conditionalUpload = (req, res, next) => {
+	// Check if this is a JSON request (video link) or multipart (file upload)
+	const contentType = req.get('content-type');
+	if (contentType && contentType.includes('application/json')) {
+		// For JSON requests (video links), skip file upload middleware
+		next();
+	} else {
+		// For multipart requests (file uploads), use upload middleware
+		upload.single('file')(req, res, next);
+	}
+};
+
+router.post('/video/upload', conditionalUpload, videoController.uploadVideo);
 router.delete('/video/:id', videoController.removeVideo);
 router.patch('/video/:id/warn', videoController.warnVideo);
 

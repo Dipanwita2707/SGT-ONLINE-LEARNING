@@ -10,13 +10,21 @@ import {
   Alert,
   Autocomplete,
   Typography,
-  Box
+  Box,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormLabel,
+  RadioGroup,
+  FormControlLabel,
+  Radio
 } from '@mui/material';
 import { getCourses } from '../../api/courseApi';
 import { getUnitsByCourse } from '../../api/unitApi';
 
 const VideoUploadDialog = ({ open, onClose, onUpload }) => {
-  const [form, setForm] = useState({ title: '', description: '', courseId: '', unitId: '' });
+  const [form, setForm] = useState({ title: '', description: '', courseId: '', unitId: '', videoLink: '' });
   const [file, setFile] = useState(null);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
@@ -26,6 +34,7 @@ const VideoUploadDialog = ({ open, onClose, onUpload }) => {
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingUnits, setLoadingUnits] = useState(false);
+  const [uploadType, setUploadType] = useState('file'); // 'file' or 'link'
   const token = localStorage.getItem('token');
 
   useEffect(() => {
@@ -89,7 +98,17 @@ const VideoUploadDialog = ({ open, onClose, onUpload }) => {
 
   const handleUpload = async () => {
     setError('');
-    if (!file || !form.title || !form.courseId) return setError('Title, course, and file are required');
+    
+    // Validation based on upload type
+    if (uploadType === 'file') {
+      if (!file || !form.title || !form.courseId) {
+        return setError('Title, course, and file are required');
+      }
+    } else {
+      if (!form.videoLink || !form.title || !form.courseId) {
+        return setError('Title, course, and video link are required');
+      }
+    }
     
     // Check if units are available but none selected
     if (units.length > 0 && !form.unitId) {
@@ -97,8 +116,12 @@ const VideoUploadDialog = ({ open, onClose, onUpload }) => {
     }
     
     try {
-      await onUpload({ ...form, file }, setProgress);
-      setForm({ title: '', description: '', courseId: '', unitId: '' });
+      await onUpload({ 
+        ...form, 
+        file: uploadType === 'file' ? file : null,
+        videoType: uploadType 
+      }, setProgress);
+      setForm({ title: '', description: '', courseId: '', unitId: '', videoLink: '' });
       setSelectedCourse(null);
       setSelectedUnit(null);
       setUnits([]);
@@ -151,21 +174,24 @@ const VideoUploadDialog = ({ open, onClose, onUpload }) => {
               placeholder="Search by course code or title"
             />
           )}
-          renderOption={(props, option) => (
-            <li {...props}>
-              <Box>
-                <Typography variant="body1" fontWeight="medium" color="primary">
-                  {option.courseCode || 'No Code'} - {option.title}
-                </Typography>
-                {option.description && (
-                  <Typography variant="body2" color="text.secondary" noWrap>
-                    {option.description.substring(0, 60)}
-                    {option.description.length > 60 ? '...' : ''}
+          renderOption={(props, option) => {
+            const { key, ...otherProps } = props;
+            return (
+              <li key={key} {...otherProps}>
+                <Box>
+                  <Typography variant="body1" fontWeight="medium" color="primary">
+                    {option.courseCode || 'No Code'} - {option.title}
                   </Typography>
-                )}
-              </Box>
-            </li>
-          )}
+                  {option.description && (
+                    <Typography variant="body2" color="text.secondary" noWrap>
+                      {option.description.substring(0, 60)}
+                      {option.description.length > 60 ? '...' : ''}
+                    </Typography>
+                  )}
+                </Box>
+              </li>
+            );
+          }}
           noOptionsText={loading ? "Loading courses..." : "No courses found"}
         />
         
@@ -188,33 +214,69 @@ const VideoUploadDialog = ({ open, onClose, onUpload }) => {
                 placeholder={units.length === 0 ? "No units available" : "Search for unit"}
               />
             )}
-            renderOption={(props, option) => (
-              <li {...props}>
-                <Box>
-                  <Typography variant="body1">
-                    {option.title}
-                  </Typography>
-                  {option.description && (
-                    <Typography variant="body2" color="text.secondary" noWrap>
-                      {option.description.substring(0, 60)}
-                      {option.description.length > 60 ? '...' : ''}
+            renderOption={(props, option) => {
+              const { key, ...otherProps } = props;
+              return (
+                <li key={key} {...otherProps}>
+                  <Box>
+                    <Typography variant="body1">
+                      {option.title}
                     </Typography>
-                  )}
-                </Box>
-              </li>
-            )}
+                    {option.description && (
+                      <Typography variant="body2" color="text.secondary" noWrap>
+                        {option.description.substring(0, 60)}
+                        {option.description.length > 60 ? '...' : ''}
+                      </Typography>
+                    )}
+                  </Box>
+                </li>
+              );
+            }}
             noOptionsText={loadingUnits ? "Loading units..." : "No units available"}
           />
         )}
         
-        <Box sx={{ mt: 3, mb: 1 }}>
-          <input 
-            type="file" 
-            accept="video/*" 
-            onChange={handleFileChange} 
-            style={{ width: '100%' }} 
-          />
+        <Box sx={{ mt: 3, mb: 2 }}>
+          <FormLabel component="legend">Video Source</FormLabel>
+          <RadioGroup
+            row
+            value={uploadType}
+            onChange={(e) => {
+              setUploadType(e.target.value);
+              // Reset file and videoLink when switching
+              if (e.target.value === 'file') {
+                setForm({ ...form, videoLink: '' });
+              } else {
+                setFile(null);
+              }
+            }}
+          >
+            <FormControlLabel value="file" control={<Radio />} label="Upload File" />
+            <FormControlLabel value="link" control={<Radio />} label="Video Link" />
+          </RadioGroup>
         </Box>
+        
+        {uploadType === 'file' ? (
+          <Box sx={{ mt: 2, mb: 1 }}>
+            <input 
+              type="file" 
+              accept="video/*" 
+              onChange={handleFileChange} 
+              style={{ width: '100%' }} 
+            />
+          </Box>
+        ) : (
+          <TextField 
+            label="Video Link (YouTube, Vimeo, etc.)" 
+            name="videoLink" 
+            value={form.videoLink} 
+            onChange={handleChange} 
+            fullWidth 
+            margin="normal" 
+            placeholder="https://www.youtube.com/watch?v=..."
+            helperText="Enter a direct video URL or embed link"
+          />
+        )}
         
         {file && (
           <Box sx={{ mt: 1, p: 1, bgcolor: 'background.paper', borderRadius: 1 }}>
@@ -224,7 +286,7 @@ const VideoUploadDialog = ({ open, onClose, onUpload }) => {
           </Box>
         )}
         
-        {progress > 0 && (
+        {uploadType === 'file' && progress > 0 && (
           <Box sx={{ mt: 2 }}>
             <Typography variant="body2" align="center" gutterBottom>
               Uploading: {progress.toFixed(0)}%
@@ -233,20 +295,28 @@ const VideoUploadDialog = ({ open, onClose, onUpload }) => {
           </Box>
         )}
         
-        <Box sx={{ mt: 2, p: 1.5, bgcolor: '#f5f5f5', borderRadius: 1, border: '1px dashed #ccc' }}>
-          <Typography variant="body2" color="text.secondary" align="center">
-            Or drag and drop a video file here
-          </Typography>
-        </Box>
+        {uploadType === 'file' && (
+          <Box sx={{ mt: 2, p: 1.5, bgcolor: '#f5f5f5', borderRadius: 1, border: '1px dashed #ccc' }}>
+            <Typography variant="body2" color="text.secondary" align="center">
+              Or drag and drop a video file here
+            </Typography>
+          </Box>
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
         <Button 
           onClick={handleUpload} 
           variant="contained" 
-          disabled={!file || !form.title || !form.courseId || (units.length > 0 && !form.unitId) || progress > 0}
+          disabled={
+            !form.title || 
+            !form.courseId || 
+            (units.length > 0 && !form.unitId) || 
+            (uploadType === 'file' && (!file || progress > 0)) ||
+            (uploadType === 'link' && !form.videoLink)
+          }
         >
-          Upload
+          {uploadType === 'file' ? 'Upload' : 'Add Video'}
         </Button>
       </DialogActions>
     </Dialog>

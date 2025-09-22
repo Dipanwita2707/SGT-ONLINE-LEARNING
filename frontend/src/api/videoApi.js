@@ -1,33 +1,60 @@
 import axios from 'axios';
 
 export const uploadVideo = async (data, token, progressCallback) => {
-  const formData = new FormData();
-  
-  // Explicitly handle each field to ensure unitId is included
-  formData.append('file', data.file);
-  formData.append('title', data.title);
-  formData.append('description', data.description || '');
-  formData.append('courseId', data.courseId);
-  
-  // Include unitId if it exists
-  if (data.unitId) {
-    formData.append('unitId', data.unitId);
-  }
-  
-  const res = await axios.post('/api/admin/video/upload', formData, {
-    headers: { 
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'multipart/form-data'
-    },
-    onUploadProgress: progressEvent => {
-      if (progressCallback) {
-        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-        progressCallback(percentCompleted);
-      }
+  if (data.videoType === 'link') {
+    // For video links, send JSON data
+    const payload = {
+      title: data.title,
+      description: data.description || '',
+      courseId: data.courseId,
+      videoLink: data.videoLink,
+      videoType: data.videoType
+    };
+    
+    // Include unitId if it exists
+    if (data.unitId) {
+      payload.unitId = data.unitId;
     }
-  });
-  
-  return res.data;
+    
+    const res = await axios.post('/api/admin/video/upload', payload, {
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    return res.data;
+  } else {
+    // For file uploads, use FormData
+    const formData = new FormData();
+    
+    // Explicitly handle each field to ensure unitId is included
+    formData.append('file', data.file);
+    formData.append('title', data.title);
+    formData.append('description', data.description || '');
+    formData.append('courseId', data.courseId);
+    formData.append('videoType', data.videoType || 'upload');
+    
+    // Include unitId if it exists
+    if (data.unitId) {
+      formData.append('unitId', data.unitId);
+    }
+    
+    const res = await axios.post('/api/admin/video/upload', formData, {
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data'
+      },
+      onUploadProgress: progressEvent => {
+        if (progressCallback) {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          progressCallback(percentCompleted);
+        }
+      }
+    });
+    
+    return res.data;
+  }
 };
 
 export const getVideoAnalytics = async (videoId, token) => {

@@ -19,7 +19,7 @@ import {
 } from '@mui/material';
 import { useParams, Link as RouterLink } from 'react-router-dom';
 import { formatVideoUrl, formatDuration } from '../../utils/videoUtils';
-import CustomVideoPlayer from '../../components/student/CustomVideoPlayer';
+import EnhancedVideoPlayer from '../../components/student/EnhancedVideoPlayer';
 import { getCourseUnits, updateWatchHistory } from '../../api/studentVideoApi';
 import GroupChatButton from '../../components/chat/GroupChatButton';
 import GroupChatPanel from '../../components/chat/GroupChatPanel';
@@ -201,9 +201,11 @@ const StudentUnitVideo = () => {
                   </Typography>
                   
                   <Box sx={{ mb: 2 }}>
-                    <CustomVideoPlayer 
+                    <EnhancedVideoPlayer 
                       videoId={currentVideo._id}
-                      videoUrl={currentVideo.videoUrl.startsWith('http') ? currentVideo.videoUrl : formatVideoUrl(currentVideo.videoUrl)}
+                      videoUrl={currentVideo.videoUrl}
+                      videoType={currentVideo.videoType}
+                      videoLink={currentVideo.videoLink}
                       title={currentVideo.title}
                       token={token}
                       onTimeUpdate={(currentTime, duration) => {

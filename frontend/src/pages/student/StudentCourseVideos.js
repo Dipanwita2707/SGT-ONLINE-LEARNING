@@ -26,7 +26,7 @@ import {
 import { useParams, Link as RouterLink, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatVideoUrl, formatDuration } from '../../utils/videoUtils';
-import CustomVideoPlayer from '../../components/student/CustomVideoPlayer';
+import EnhancedVideoPlayer from '../../components/student/EnhancedVideoPlayer';
 import { getCourseVideos, updateWatchHistory, getStudentQuizResults } from '../../api/studentVideoApi';
 import GroupChatButton from '../../components/chat/GroupChatButton';
 import GroupChatPanel from '../../components/chat/GroupChatPanel';
@@ -588,9 +588,11 @@ const StudentCourseVideos = () => {
                   </Box>
                   
                   <Box sx={{ mb: 2 }}>
-                    <CustomVideoPlayer 
+                    <EnhancedVideoPlayer 
                       videoId={currentVideo._id}
-                      videoUrl={currentVideo.videoUrl.startsWith('http') ? currentVideo.videoUrl : formatVideoUrl(currentVideo.videoUrl)}
+                      videoUrl={currentVideo.videoUrl}
+                      videoType={currentVideo.videoType}
+                      videoLink={currentVideo.videoLink}
                       title={currentVideo.title}
                       token={token}
                       onTimeUpdate={(currentTime, duration) => {

@@ -8,7 +8,13 @@ const videoSchema = new mongoose.Schema({
   contentBlock: { type: mongoose.Schema.Types.ObjectId, ref: 'ContentBlock' },
   sequence: { type: Number, default: 1 }, // Sequence within unit or content block
   teacher: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  videoUrl: { type: String, required: true },
+  videoUrl: { type: String }, // File upload URL (no longer required)
+  videoLink: { type: String }, // External video link (YouTube, Vimeo, etc.)
+  videoType: { 
+    type: String, 
+    enum: ['upload', 'link'], 
+    default: 'upload' 
+  }, // Indicates whether it's a file upload or external link
   duration: { type: Number }, // Duration in seconds
   resourceFiles: [{ type: String }],
   warned: { type: Boolean, default: false },
@@ -70,6 +76,22 @@ videoSchema.pre('save', async function(next) {
     } catch (err) {
       console.error('Error setting video sequence:', err);
     }
+  }
+  
+  next();
+});
+
+// Add validation to ensure either videoUrl or videoLink is provided
+videoSchema.pre('validate', function(next) {
+  if (!this.videoUrl && !this.videoLink) {
+    this.invalidate('video', 'Either videoUrl or videoLink must be provided');
+  }
+  
+  // Set videoType based on what's provided
+  if (this.videoLink && !this.videoUrl) {
+    this.videoType = 'link';
+  } else if (this.videoUrl && !this.videoLink) {
+    this.videoType = 'upload';
   }
   
   next();
