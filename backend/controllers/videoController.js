@@ -216,9 +216,19 @@ exports.removeVideo = async (req, res) => {
   try {
     const video = await Video.findById(req.params.id);
     if (!video) return res.status(404).json({ message: 'Video not found' });
-    fs.unlinkSync(video.videoUrl);
+    
+    // Only try to delete file if it's an uploaded video with a local file path
+    if (video.videoUrl && !video.videoUrl.startsWith('http')) {
+      try {
+        fs.unlinkSync(video.videoUrl);
+      } catch (fileErr) {
+        console.warn(`Could not delete file: ${video.videoUrl}`, fileErr.message);
+        // Continue with database deletion even if file deletion fails
+      }
+    }
+    
     await Video.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Video removed' });
+    res.json({ message: 'Video removed successfully' });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }

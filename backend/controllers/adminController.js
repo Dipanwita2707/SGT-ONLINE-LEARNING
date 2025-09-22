@@ -1902,18 +1902,31 @@ exports.getCourseVideos = async (req, res) => {
         ? Math.round((completedViews / students.length) * 100) 
         : 0;
       
+      // Handle different video types (uploaded files vs external links)
+      let videoUrl = null;
+      if (video.videoUrl) {
+        videoUrl = video.videoUrl.startsWith('http') 
+          ? video.videoUrl 
+          : `${req.protocol}://${req.get('host')}/${video.videoUrl.replace(/\\/g, '/')}`;
+      } else if (video.videoLink) {
+        videoUrl = video.videoLink;
+      }
+
       return {
         _id: video._id,
         title: video.title,
         description: video.description,
-        url: video.videoUrl.startsWith('http') ? video.videoUrl : `${req.protocol}://${req.get('host')}/${video.videoUrl.replace(/\\/g, '/')}`,
+        videoUrl: videoUrl,
+        videoType: video.videoType || (video.videoLink ? 'link' : 'upload'),
+        videoLink: video.videoLink || null,
         thumbnail: video.thumbnail || null,
         duration: video.duration || 0,
         teacherName: video.teacher ? video.teacher.name : 'Unknown',
         uploadDate: video.createdAt,
         views,
         completionRate,
-        warned: video.warned || false
+        warned: video.warned || false,
+        course: video.course
       };
     });
     

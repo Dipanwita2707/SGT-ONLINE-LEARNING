@@ -68,9 +68,9 @@ const EnhancedVideoPlayer = ({
   // Speed options
   const speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
-  // Handle video time update for tracking (only for upload videos)
+  // Handle video time update for tracking (for upload and direct videos)
   const handleTimeUpdate = () => {
-    if (videoRef.current && videoInfo.embedType === 'upload') {
+    if (videoRef.current && (videoInfo.embedType === 'upload' || videoInfo.embedType === 'direct')) {
       const newCurrentTime = videoRef.current.currentTime;
       const newDuration = videoRef.current.duration;
       
@@ -120,9 +120,9 @@ const EnhancedVideoPlayer = ({
     }
   };
 
-  // Toggle play/pause for uploaded videos
+  // Toggle play/pause for uploaded and direct videos
   const togglePlay = () => {
-    if (videoRef.current && videoInfo.embedType === 'upload') {
+    if (videoRef.current && (videoInfo.embedType === 'upload' || videoInfo.embedType === 'direct')) {
       if (isPlaying) {
         videoRef.current.pause();
       } else {
@@ -134,7 +134,7 @@ const EnhancedVideoPlayer = ({
 
   // Handle volume change
   const handleVolumeChange = (event, newValue) => {
-    if (videoRef.current && videoInfo.embedType === 'upload') {
+    if (videoRef.current && (videoInfo.embedType === 'upload' || videoInfo.embedType === 'direct')) {
       setVolume(newValue);
       videoRef.current.volume = newValue;
       if (newValue > 0 && isMuted) {
@@ -145,7 +145,7 @@ const EnhancedVideoPlayer = ({
 
   // Toggle mute
   const toggleMute = () => {
-    if (videoRef.current && videoInfo.embedType === 'upload') {
+    if (videoRef.current && (videoInfo.embedType === 'upload' || videoInfo.embedType === 'direct')) {
       setIsMuted(!isMuted);
       videoRef.current.muted = !isMuted;
     }
@@ -153,7 +153,7 @@ const EnhancedVideoPlayer = ({
 
   // Handle progress change
   const handleProgressChange = (event, newValue) => {
-    if (videoRef.current && videoInfo.embedType === 'upload') {
+    if (videoRef.current && (videoInfo.embedType === 'upload' || videoInfo.embedType === 'direct')) {
       videoRef.current.currentTime = newValue;
       setCurrentTime(newValue);
     }
@@ -173,7 +173,7 @@ const EnhancedVideoPlayer = ({
     }
     
     const timeout = setTimeout(() => {
-      if (isPlaying && videoInfo.embedType === 'upload') {
+      if (isPlaying && (videoInfo.embedType === 'upload' || videoInfo.embedType === 'direct')) {
         setShowControls(false);
       }
     }, 3000);
@@ -183,7 +183,7 @@ const EnhancedVideoPlayer = ({
 
   // Handle speed change
   const handleSpeedChange = (speed) => {
-    if (videoRef.current && videoInfo.embedType === 'upload') {
+    if (videoRef.current && (videoInfo.embedType === 'upload' || videoInfo.embedType === 'direct')) {
       videoRef.current.playbackRate = speed;
       setPlaybackRate(speed);
     }
@@ -199,9 +199,9 @@ const EnhancedVideoPlayer = ({
     };
   }, [controlsTimeout]);
 
-  // Initialize video for uploads
+  // Initialize video for uploads and direct videos
   useEffect(() => {
-    if (videoRef.current && videoInfo.embedType === 'upload') {
+    if (videoRef.current && (videoInfo.embedType === 'upload' || videoInfo.embedType === 'direct')) {
       const video = videoRef.current;
       
       const handleCanPlay = () => setLoading(false);
@@ -549,8 +549,8 @@ const EnhancedVideoPlayer = ({
         )}
       </Paper>
 
-      {/* Fullscreen Dialog for uploaded videos */}
-      {isFullScreen && videoInfo.embedType === 'upload' && (
+      {/* Fullscreen Dialog for uploaded and direct videos */}
+      {isFullScreen && (videoInfo.embedType === 'upload' || videoInfo.embedType === 'direct') && (
         <Dialog
           fullScreen
           open={isFullScreen}
