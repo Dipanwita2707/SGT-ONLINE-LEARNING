@@ -8,7 +8,9 @@ const videoSchema = new mongoose.Schema({
   contentBlock: { type: mongoose.Schema.Types.ObjectId, ref: 'ContentBlock' },
   sequence: { type: Number, default: 1 }, // Sequence within unit or content block
   teacher: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  videoUrl: { type: String, required: true },
+  videoUrl: { type: String }, // For uploaded files
+  videoLink: { type: String }, // For external video links (YouTube, Vimeo, etc.)
+  videoType: { type: String, enum: ['upload', 'link'], default: 'upload' }, // Type of video
   duration: { type: Number }, // Duration in seconds
   resourceFiles: [{ type: String }],
   warned: { type: Boolean, default: false },
