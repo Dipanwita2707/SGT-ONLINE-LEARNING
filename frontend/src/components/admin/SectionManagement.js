@@ -133,7 +133,7 @@ const SectionManagement = ({ user, token }) => {
       console.log('Fetching sections...');
       const currentToken = token || localStorage.getItem('token');
       console.log('Using token:', currentToken ? 'Token exists' : 'No token');
-      const data = await sectionApi.getAllSections(currentToken);
+      const data = await sectionApi.getAllSections();
       console.log('Sections received:', data);
       setAllSections(data);
       setSections(data);
@@ -159,7 +159,7 @@ const SectionManagement = ({ user, token }) => {
     try {
       if (!schoolId) return;
       
-      const available = await sectionApi.getAvailableStudents(schoolId, token);
+      const available = await sectionApi.getAvailableStudents(schoolId);
       setAvailableStudents(available);
     } catch (err) {
       console.error('Error fetching available students:', err);
@@ -235,7 +235,7 @@ const SectionManagement = ({ user, token }) => {
 
   const fetchSectionsByCourse = async (courseId) => {
     try {
-      const data = await sectionApi.getSectionsByCourse(courseId, token);
+      const data = await sectionApi.getSectionsByCourse(courseId);
       setSections(data);
     } catch (err) {
       setError('Failed to fetch sections');
@@ -282,7 +282,7 @@ const SectionManagement = ({ user, token }) => {
       };
       
       // Use section API for section creation
-      await sectionApi.createSection(sectionData, token);
+      await sectionApi.createSection(sectionData);
       setSuccess('Section created successfully!');
       
       // Reset form
@@ -314,12 +314,12 @@ const SectionManagement = ({ user, token }) => {
       setLoading(true);
       setError('');
       
-      await sectionApi.assignStudentToSection(selectedSection._id, studentId, token);
+      await sectionApi.assignStudentToSection(selectedSection._id, studentId);
       setSuccess('Student assigned successfully!');
       
       // Refresh sections and update selected section
       await fetchAllSections();
-      const updatedSection = await sectionApi.getAllSections(token);
+      const updatedSection = await sectionApi.getAllSections();
       const updated = updatedSection.find(s => s._id === selectedSection._id);
       setSelectedSection(updated);
     } catch (err) {
@@ -334,12 +334,12 @@ const SectionManagement = ({ user, token }) => {
       setLoading(true);
       setError('');
       
-      await sectionApi.removeStudentFromSection(selectedSection._id, studentId, token);
+      await sectionApi.removeStudentFromSection(selectedSection._id, studentId);
       setSuccess('Student removed successfully!');
       
       // Refresh sections and update selected section
       await fetchAllSections();
-      const updatedSections = await sectionApi.getAllSections(token);
+      const updatedSections = await sectionApi.getAllSections();
       const updated = updatedSections.find(s => s._id === selectedSection._id);
       setSelectedSection(updated);
     } catch (err) {
@@ -355,12 +355,12 @@ const SectionManagement = ({ user, token }) => {
       setLoading(true);
       setError('');
       
-      await sectionApi.removeTeacherFromSection(selectedSection._id, token);
+      await sectionApi.removeTeacherFromSection(selectedSection._id);
       setSuccess('Teacher removed successfully!');
       
       // Refresh sections and update selected section
       await fetchAllSections();
-      const updatedSections = await sectionApi.getAllSections(token);
+      const updatedSections = await sectionApi.getAllSections();
       const updated = updatedSections.find(s => s._id === selectedSection._id);
       setSelectedSection(updated);
     } catch (err) {
@@ -375,12 +375,12 @@ const SectionManagement = ({ user, token }) => {
       setLoading(true);
       setError('');
       
-      await sectionApi.assignCoursesToSection(selectedSection._id, courseIds, token);
+      await sectionApi.assignCoursesToSection(selectedSection._id, courseIds);
       setSuccess('Courses assigned successfully!');
       
       // Refresh sections and update selected section
       await fetchAllSections();
-      const updatedSections = await sectionApi.getAllSections(token);
+      const updatedSections = await sectionApi.getAllSections();
       const updated = updatedSections.find(s => s._id === selectedSection._id);
       setSelectedSection(updated);
     } catch (err) {
@@ -395,12 +395,12 @@ const SectionManagement = ({ user, token }) => {
       setLoading(true);
       setError('');
       
-      await sectionApi.removeCoursesFromSection(selectedSection._id, [courseId], token);
+      await sectionApi.removeCoursesFromSection(selectedSection._id, [courseId]);
       setSuccess('Course removed successfully!');
       
       // Refresh sections and update selected section
       await fetchAllSections();
-      const updatedSections = await sectionApi.getAllSections(token);
+      const updatedSections = await sectionApi.getAllSections();
       const updated = updatedSections.find(s => s._id === selectedSection._id);
       setSelectedSection(updated);
     } catch (err) {
@@ -444,7 +444,7 @@ const SectionManagement = ({ user, token }) => {
       setError('');
       
       for (const studentId of selectedStudentsToAssign) {
-        await sectionApi.assignStudentToSection(selectedSection._id, studentId, token);
+        await sectionApi.assignStudentToSection(selectedSection._id, studentId);
       }
       
       setSuccess(`${selectedStudentsToAssign.length} students assigned successfully!`);
@@ -452,7 +452,7 @@ const SectionManagement = ({ user, token }) => {
       
       // Refresh sections and update selected section
       await fetchAllSections();
-      const updatedSections = await sectionApi.getAllSections(token);
+      const updatedSections = await sectionApi.getAllSections();
       const updated = updatedSections.find(s => s._id === selectedSection._id);
       setSelectedSection(updated);
     } catch (err) {
@@ -468,13 +468,13 @@ const SectionManagement = ({ user, token }) => {
       setLoading(true);
       setError('');
       
-      await sectionApi.assignCoursesToSection(selectedSection._id, selectedCoursesToAssign, token);
+      await sectionApi.assignCoursesToSection(selectedSection._id, selectedCoursesToAssign);
       setSuccess(`${selectedCoursesToAssign.length} courses assigned successfully!`);
       setOpenCourseAssignDialog(false);
       
       // Refresh sections and update selected section
       await fetchAllSections();
-      const updatedSections = await sectionApi.getAllSections(token);
+      const updatedSections = await sectionApi.getAllSections();
       const updated = updatedSections.find(s => s._id === selectedSection._id);
       setSelectedSection(updated);
     } catch (err) {
@@ -490,13 +490,13 @@ const SectionManagement = ({ user, token }) => {
       setLoading(true);
       setError('');
       
-      await sectionApi.assignTeacherToSection(selectedSection._id, selectedTeacherToAssign, token);
+      await sectionApi.assignTeacherToSection(selectedSection._id, selectedTeacherToAssign);
       setSuccess('Teacher assigned successfully!');
       setOpenTeacherAssignDialog(false);
       
       // Refresh sections and update selected section
       await fetchAllSections();
-      const updatedSections = await sectionApi.getAllSections(token);
+      const updatedSections = await sectionApi.getAllSections();
       const updated = updatedSections.find(s => s._id === selectedSection._id);
       setSelectedSection(updated);
     } catch (err) {
@@ -511,7 +511,7 @@ const SectionManagement = ({ user, token }) => {
   // Fetch course-teacher assignments for a section
   const fetchCourseTeacherAssignments = async (sectionId) => {
     try {
-      const response = await sectionApi.getSectionCourseTeachers(sectionId, token);
+      const response = await sectionApi.getSectionCourseTeachers(sectionId);
       setCourseTeacherAssignments(response.assignments || []);
     } catch (err) {
       console.error('Failed to fetch course-teacher assignments:', err);
@@ -522,7 +522,7 @@ const SectionManagement = ({ user, token }) => {
   // Fetch unassigned courses for a section
   const fetchUnassignedCourses = async (sectionId) => {
     try {
-      const response = await sectionApi.getUnassignedCourses(sectionId, token);
+      const response = await sectionApi.getUnassignedCourses(sectionId);
       setUnassignedCourses(response.unassignedCourses || []);
     } catch (err) {
       console.error('Failed to fetch unassigned courses:', err);
@@ -534,16 +534,41 @@ const SectionManagement = ({ user, token }) => {
   const openCourseTeacherAssignment = async () => {
     if (!selectedSection) return;
     
+    // Only fetch assignments and unassigned courses initially
+    // Teachers will be fetched when a course is selected
     await Promise.all([
       fetchCourseTeacherAssignments(selectedSection._id),
-      fetchUnassignedCourses(selectedSection._id),
-      fetchAvailableTeachers(selectedSection.department?._id)
+      fetchUnassignedCourses(selectedSection._id)
     ]);
     
     setSelectedCourseForTeacher('');
     setSelectedTeacherForCourse('');
+    setAvailableTeachers([]); // Clear teachers until a course is selected
     setOpenCourseTeacherDialog(true);
   };
+
+  // Load teachers when a course is selected
+  useEffect(() => {
+    const loadTeachersForSelectedCourse = async () => {
+      if (!selectedCourseForTeacher || !unassignedCourses.length) return;
+      
+      // Find the selected course to get its department
+      const selectedCourse = unassignedCourses.find(course => course._id === selectedCourseForTeacher);
+      console.log('Selected course:', selectedCourse);
+      console.log('Available unassigned courses:', unassignedCourses);
+      
+      if (selectedCourse?.department?._id) {
+        console.log(`Loading teachers for course ${selectedCourse.title} from department ${selectedCourse.department.name} (${selectedCourse.department._id})`);
+        setAvailableTeachers([]); // Clear previous teachers
+        await fetchAvailableTeachers(selectedCourse.department._id);
+      } else {
+        console.log('No department found for selected course');
+        setAvailableTeachers([]);
+      }
+    };
+    
+    loadTeachersForSelectedCourse();
+  }, [selectedCourseForTeacher, unassignedCourses]);
 
   // Handle course-teacher assignment
   const handleCourseTeacherAssignment = async () => {
@@ -559,8 +584,7 @@ const SectionManagement = ({ user, token }) => {
       await sectionApi.assignCourseTeacher(
         selectedSection._id, 
         selectedCourseForTeacher, 
-        selectedTeacherForCourse, 
-        token
+        selectedTeacherForCourse
       );
       
       setSuccess('Teacher assigned to course successfully!');
@@ -588,7 +612,7 @@ const SectionManagement = ({ user, token }) => {
       setLoading(true);
       setError('');
       
-      await sectionApi.removeCourseTeacher(selectedSection._id, courseId, token);
+      await sectionApi.removeCourseTeacher(selectedSection._id, courseId);
       setSuccess('Teacher assignment removed successfully!');
       
       // Refresh the assignments and unassigned courses
@@ -1556,3 +1580,4 @@ const SectionManagement = ({ user, token }) => {
 };
 
 export default SectionManagement;
+

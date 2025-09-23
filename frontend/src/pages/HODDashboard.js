@@ -7,12 +7,16 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import { parseJwt } from '../utils/jwt';
 import { logoutUser } from '../utils/authService';
+import { useUserRole } from '../contexts/UserRoleContext';
 import Sidebar from '../components/Sidebar';
+import RoleSwitcher from '../components/RoleSwitcher';
+import DashboardRoleGuard from '../components/DashboardRoleGuard';
 
 // Import HOD Dashboard components
 import HODDashboardHome from './hod/HODDashboardHome';
 import HODTeachers from './hod/HODTeachers';
 import HODCourses from './hod/HODCourses';
+import HODSections from './hod/HODSections';
 import HODAnalytics from './hod/HODAnalytics';
 import HODAnnouncements from './hod/HODAnnouncements';
 import MyTeachingSections from '../components/common/MyTeachingSections';
@@ -20,16 +24,17 @@ import MyTeachingSections from '../components/common/MyTeachingSections';
 import HODAnnouncementApproval from '../components/hod/HODAnnouncementApproval';
 import HODQuizManagement from './hod/HODQuizManagement';
 import HODCCManagement from './hod/HODCCManagement';
+import HODVideoUnlockApproval from './hod/HODVideoUnlockApproval';
 
 const HODDashboard = () => {
   const token = localStorage.getItem('token');
   const currentUser = parseJwt(token);
   const navigate = useNavigate();
   const location = useLocation();
-  const [userMenuAnchor, setUserMenuAnchor] = useState(null);
   const [notifAnchor, setNotifAnchor] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const { hasRole } = useUserRole();
 
   useEffect(() => {
     if (!token) return;
@@ -47,7 +52,14 @@ const HODDashboard = () => {
   }, [token]);
 
   // Allow only hod users to access the HOD dashboard
-  if (!currentUser || currentUser.role !== 'hod') {
+  const hasHODRole = currentUser && (
+    currentUser.role === 'hod' || 
+    (currentUser.roles && currentUser.roles.includes('hod')) ||
+    currentUser.primaryRole === 'hod' ||
+    hasRole('hod')
+  );
+  
+  if (!hasHODRole) {
     return <Navigate to="/login" />;
   }
 
@@ -56,19 +68,7 @@ const HODDashboard = () => {
     return <Navigate to="/hod/dashboard" replace />;
   }
 
-  // User menu handlers
-  const handleUserMenuOpen = (event) => {
-    setUserMenuAnchor(event.currentTarget);
-  };
-  
-  const handleUserMenuClose = () => {
-    setUserMenuAnchor(null);
-  };
 
-  const handleLogout = () => {
-    logoutUser();
-    navigate('/login');
-  };
 
   const openNotifications = async (e) => {
     setNotifAnchor(e.currentTarget);
@@ -89,9 +89,10 @@ const HODDashboard = () => {
   const closeNotifications = () => setNotifAnchor(null);
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <Sidebar currentUser={currentUser} />
-      <Box sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: '#f5f5f5' }}>
+    <DashboardRoleGuard requiredRole="hod">
+      <Box sx={{ display: 'flex' }}>
+        <Sidebar currentUser={currentUser} />
+        <Box sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: '#f5f5f5' }}>
         {/* Top Navigation Bar */}
         <Box sx={{ 
           bgcolor: 'white', 
@@ -117,23 +118,8 @@ const HODDashboard = () => {
               </IconButton>
             </Tooltip>
 
-            {/* User Menu */}
-            <Tooltip title="Account settings">
-              <IconButton onClick={handleUserMenuOpen} color="inherit">
-                <AccountCircleIcon />
-              </IconButton>
-            </Tooltip>
-            
-            <Menu
-              anchorEl={userMenuAnchor}
-              open={Boolean(userMenuAnchor)}
-              onClose={handleUserMenuClose}
-            >
-              <MenuItem onClick={handleLogout}>
-                <LogoutIcon sx={{ mr: 1 }} />
-                Logout
-              </MenuItem>
-            </Menu>
+            {/* Role Switcher */}
+            <RoleSwitcher />
           </Box>
         </Box>
 
@@ -144,16 +130,19 @@ const HODDashboard = () => {
           <Route path="/dashboard" element={<HODDashboardHome />} />
           <Route path="/teachers" element={<HODTeachers />} />
           <Route path="/courses" element={<HODCourses />} />
+          <Route path="/sections" element={<HODSections />} />
           <Route path="/analytics" element={<HODAnalytics />} />
           <Route path="/announcements" element={<HODAnnouncements user={currentUser} />} />
           <Route path="/announcement-approvals" element={<HODAnnouncementApproval token={token} />} />
           <Route path="/quiz-management" element={<HODQuizManagement />} />
           <Route path="/cc-management" element={<HODCCManagement />} />
           <Route path="/teaching-sections" element={<MyTeachingSections />} />
+          <Route path="/video-unlock-requests" element={<HODVideoUnlockApproval token={token} user={currentUser} />} />
           <Route path="*" element={<Navigate to="/hod/dashboard" replace />} />
         </Routes>
       </Box>
     </Box>
+    </DashboardRoleGuard>
   );
 };
 

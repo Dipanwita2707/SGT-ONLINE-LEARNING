@@ -179,7 +179,15 @@ exports.login = async (req, res) => {
     // Normalize email (trim whitespace and convert to lowercase)
     const normalizedEmail = email.trim().toLowerCase();
     
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({ email: normalizedEmail })
+      .populate({
+        path: 'roleAssignments.school roleAssignments.schools',
+        select: 'name code'
+      })
+      .populate({
+        path: 'roleAssignments.departments',
+        select: 'name code school'
+      });
     if (!user) {
       // Try a more flexible search if exact match not found
       const similarEmailUser = await User.findOne({ 
@@ -232,8 +240,18 @@ exports.login = async (req, res) => {
     console.log('Normalized permissions:', normalizedPermissions);
     
     const token = jwt.sign({ 
+      _id: user._id,
       id: user._id, 
-      role: user.role,
+      name: user.name,
+      email: user.email,
+      role: user.primaryRole || user.role, // Use primaryRole as the main role
+      roles: user.roles || [user.role], // Include all roles array
+      primaryRole: user.primaryRole || user.role,
+      school: user.school,
+      department: user.department,
+      departments: user.departments || [],
+      // Role-specific assignments for enhanced multi-role system
+      roleAssignments: user.roleAssignments || [],
       permissions: normalizedPermissions
     }, process.env.JWT_SECRET, { expiresIn: '1d' });
     
@@ -244,11 +262,55 @@ exports.login = async (req, res) => {
         name: user.name, 
         email: user.email, 
         role: user.role,
+        roles: user.roles || [user.role],
+        primaryRole: user.primaryRole || user.role,
         permissions: normalizedPermissions
       } 
     });
   } catch (err) {
     console.error('Login error:', err);
     res.status(400).json({ message: err.message });
+  }
+};
+
+// Get current authenticated user with multi-role support
+exports.getCurrentUser = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    
+    // Get full user data with populated references
+    const user = await User.findById(req.user._id)
+      .populate('school', 'name code')
+      .populate('department', 'name code')
+      .select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Support both multi-role and legacy single-role systems
+    const responseData = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      roles: user.roles || [user.role],
+      primaryRole: user.primaryRole || user.role,
+      permissions: user.permissions || [],
+      school: user.school,
+      department: user.department,
+      regNo: user.regNo,
+      teacherId: user.teacherId,
+      coursesAssigned: user.coursesAssigned,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
+    
+    res.json(responseData);
+  } catch (err) {
+    console.error('Get current user error:', err);
+    res.status(500).json({ message: err.message });
   }
 };

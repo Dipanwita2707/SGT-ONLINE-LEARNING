@@ -8,7 +8,10 @@ import NotificationsIcon from '@mui/icons-material/Notifications';
 import { parseJwt } from '../utils/jwt';
 import { hasPermission } from '../utils/permissions';
 import { logoutUser } from '../utils/authService';
+import { useUserRole } from '../contexts/UserRoleContext';
 import Sidebar from '../components/Sidebar';
+import RoleSwitcher from '../components/RoleSwitcher';
+import DashboardRoleGuard from '../components/DashboardRoleGuard';
 import AnnouncementPage from './AnnouncementPage';
 
 // Import Teacher Dashboard components
@@ -33,9 +36,13 @@ import TeacherLiveClassDashboard from '../components/teacher/TeacherLiveClassDas
 const TeacherDashboard = () => {
   const token = localStorage.getItem('token');
   const currentUser = parseJwt(token);
+  const { user: contextUser, hasRole, activeRole } = useUserRole();
   const navigate = useNavigate();
   const location = useLocation();
-  const [userMenuAnchor, setUserMenuAnchor] = useState(null);
+  
+  // Use context user if available, fallback to parsed JWT
+  const user = contextUser || currentUser;
+
   const [notifAnchor, setNotifAnchor] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -87,8 +94,17 @@ const TeacherDashboard = () => {
 
   const closeNotifications = () => setNotifAnchor(null);
 
-  // Allow teacher and admin users to access the teacher dashboard
-  if (!currentUser || (currentUser.role !== 'teacher' && currentUser.role !== 'admin')) {
+  // Allow users with teacher role or admin role to access the teacher dashboard
+  const hasTeacherRole = user && (
+    user.role === 'teacher' || 
+    (user.roles && user.roles.includes('teacher')) ||
+    user.primaryRole === 'teacher' ||
+    hasRole('teacher') ||
+    hasRole('admin') ||
+    hasRole('cc') // Course coordinators can access teacher dashboard
+  );
+  
+  if (!hasTeacherRole) {
     return <Navigate to="/login" />;
   }
 
@@ -97,28 +113,10 @@ const TeacherDashboard = () => {
     return <Navigate to="/teacher/dashboard" replace />;
   }
 
-  // User menu handlers
-  const handleUserMenuOpen = (event) => {
-    setUserMenuAnchor(event.currentTarget);
-  };
-  
-  const handleUserMenuClose = () => {
-    setUserMenuAnchor(null);
-  };
-  
-  // Logout handler
-  const handleLogout = async () => {
-    handleUserMenuClose();
-    const result = await logoutUser();
-    if (result.success) {
-      navigate('/login');
-    }
-  };
-
   // Create a protected route component that checks permissions
   const PermissionRoute = ({ element, permission }) => {
     // If no permission is required or user has permission, render the element
-    if (!permission || hasPermission(currentUser, permission)) {
+    if (!permission || hasPermission(user, permission)) {
       return element;
     }
     // Otherwise, render the unauthorized page
@@ -126,8 +124,9 @@ const TeacherDashboard = () => {
   };
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      <Sidebar currentUser={currentUser} />
+    <DashboardRoleGuard requiredRole="teacher">
+      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+      <Sidebar currentUser={user} />
       <Box sx={{ position: 'absolute', top: 16, right: 24, zIndex: 1201, display: 'flex', gap: 1 }}>
         <style>{`@keyframes bellPulse {0%{transform:scale(1);}50%{transform:scale(1.25);}100%{transform:scale(1);} } @keyframes annGlow {0%{box-shadow:0 0 0 0 rgba(255,0,0,0.65);}70%{box-shadow:0 0 0 16px rgba(255,0,0,0);}100%{box-shadow:0 0 0 0 rgba(255,0,0,0);} }`}</style>
         <Tooltip title="Notifications">
@@ -147,37 +146,7 @@ const TeacherDashboard = () => {
             </Badge>
           </IconButton>
         </Tooltip>
-        <Tooltip title="Account">
-          <IconButton 
-            onClick={handleUserMenuOpen}
-            size="medium"
-            sx={{ 
-              bgcolor: 'secondary.main', 
-              color: 'white',
-              '&:hover': { bgcolor: 'secondary.dark' } 
-            }}
-          >
-            <AccountCircleIcon />
-          </IconButton>
-        </Tooltip>
-        <Menu
-          anchorEl={userMenuAnchor}
-          open={Boolean(userMenuAnchor)}
-          onClose={handleUserMenuClose}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'right',
-          }}
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'right',
-          }}
-        >
-          <MenuItem onClick={handleLogout}>
-            <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
-            Logout
-          </MenuItem>
-        </Menu>
+        <RoleSwitcher />
         <Menu
           anchorEl={notifAnchor}
             open={Boolean(notifAnchor)}
@@ -201,7 +170,7 @@ const TeacherDashboard = () => {
           <Route path="/dashboard" element={<TeacherDashboardHome />} />
           <Route path="/profile" element={<TeacherProfile />} />
           <Route path="/courses" element={<TeacherCourses />} />
-          <Route path="/sections" element={<TeacherSections user={currentUser} token={token} />} />
+          <Route path="/sections" element={<TeacherSections />} />
           <Route path="/section-analytics" element={<TeacherSectionAnalytics user={currentUser} token={token} />} />
           <Route path="/live-classes" element={<TeacherLiveClassDashboard user={currentUser} token={token} />} />
           <Route path="/course/:courseId" element={<TeacherCourseDetail />} />
@@ -221,6 +190,7 @@ const TeacherDashboard = () => {
         </Routes>
       </Box>
     </Box>
+    </DashboardRoleGuard>
   );
 };
 

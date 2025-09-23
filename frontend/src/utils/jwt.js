@@ -11,3 +11,33 @@ export function parseJwt(token) {
     return null;
   }
 }
+
+export const isTokenExpired = (token) => {
+  try {
+    const decoded = parseJwt(token);
+    if (!decoded || !decoded.exp) return true;
+    
+    const currentTime = Date.now() / 1000;
+    return decoded.exp < currentTime;
+  } catch (error) {
+    return true;
+  }
+};
+
+export const getTokenRoles = (token) => {
+  try {
+    const decoded = parseJwt(token);
+    if (!decoded) return [];
+    
+    // Support both legacy single role and new multi-role system
+    if (decoded.roles && Array.isArray(decoded.roles)) {
+      return decoded.roles;
+    } else if (decoded.role) {
+      return [decoded.role];
+    }
+    return [];
+  } catch (error) {
+    console.error('Error getting token roles:', error);
+    return [];
+  }
+};

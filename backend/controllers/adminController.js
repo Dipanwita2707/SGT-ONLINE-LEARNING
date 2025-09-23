@@ -17,8 +17,18 @@ exports.bulkMessage = async (req, res) => {
   try {
     const { target, type, subject, message } = req.body; // target: 'students'|'teachers', type: 'email'|'notification'
     let users = [];
-    if (target === 'students') users = await User.find({ role: 'student', isActive: true });
-    else if (target === 'teachers') users = await User.find({ role: 'teacher', isActive: true });
+    if (target === 'students') users = await User.find({ 
+      $or: [
+        { role: 'student', isActive: true },
+        { roles: 'student', isActive: true }
+      ]
+    });
+    else if (target === 'teachers') users = await User.find({ 
+      $or: [
+        { role: 'teacher', isActive: true },
+        { roles: 'teacher', isActive: true }
+      ]
+    });
     else return res.status(400).json({ message: 'Invalid target' });
 
     if (type === 'email') {
@@ -133,7 +143,12 @@ exports.getCoursesByDepartment = async (req, res) => {
 // Get all students
 exports.getAllStudents = async (req, res) => {
   try {
-    const students = await User.find({ role: 'student' })
+    const students = await User.find({ 
+      $or: [
+        { role: 'student' },
+        { roles: 'student' }
+      ]
+    })
       .populate('school', 'name code')
       .populate('coursesAssigned', 'title courseCode');
     res.json(students);
@@ -144,7 +159,12 @@ exports.getAllStudents = async (req, res) => {
 // Get all teachers
 exports.getAllTeachers = async (req, res) => {
   try {
-    const teachers = await User.find({ role: 'teacher' })
+    const teachers = await User.find({ 
+      $or: [
+        { role: 'teacher' },
+        { roles: 'teacher' }
+      ]
+    })
       .populate('coursesAssigned', 'title courseCode description');
     
     // For each teacher, get their section-course assignments
@@ -202,6 +222,67 @@ exports.getAllTeachers = async (req, res) => {
     res.json(teachersWithSectionCourses);
   } catch (err) {
     console.error('Error in getAllTeachers:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Get all users (for user role management)
+exports.getAllUsers = async (req, res) => {
+  try {
+    console.log('📋 getAllUsers - Request user:', req.user?._id, req.user?.email);
+    
+    // Fetch all users with different roles
+    const users = await User.find({})
+      .populate('school', 'name code')
+      .populate('department', 'name code')
+      .populate('departments', 'name code')
+      .select('-password')
+      .sort({ createdAt: -1 });
+
+    console.log('👥 Found users count:', users.length);
+    
+    // Debug: Log users with departments
+    const usersWithDepts = users.filter(u => u.departments?.length > 0 || u.department);
+    console.log('🏢 Users with departments:', usersWithDepts.map(u => ({
+      id: u._id,
+      email: u.email,
+      departments: u.departments,
+      department: u.department
+    })));
+
+    // Group users by their roles for better organization
+    const usersByRole = users.reduce((acc, user) => {
+      const userRoles = user.roles && user.roles.length > 0 ? user.roles : [user.role];
+      userRoles.forEach(role => {
+        if (!acc[role]) acc[role] = [];
+        // Avoid duplicates if user has multiple roles
+        if (!acc[role].find(u => u._id.toString() === user._id.toString())) {
+          acc[role].push({
+            ...user.toObject(),
+            currentRoles: userRoles,
+            primaryRole: user.primaryRole || user.role
+          });
+        }
+      });
+      return acc;
+    }, {});
+
+    // Return both the full list and grouped data
+    res.json({
+      users: users.map(user => ({
+        ...user.toObject(),
+        currentRoles: user.roles && user.roles.length > 0 ? user.roles : [user.role],
+        primaryRole: user.primaryRole || user.role
+      })),
+      usersByRole,
+      totalCount: users.length,
+      roleCounts: Object.keys(usersByRole).reduce((acc, role) => {
+        acc[role] = usersByRole[role].length;
+        return acc;
+      }, {})
+    });
+  } catch (err) {
+    console.error('Error in getAllUsers:', err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -476,7 +557,7 @@ async function resolveCourseIdentifiers(identifiers) {
 // Add a teacher manually
 exports.addTeacher = async (req, res) => {
   try {
-    const { name, email, password, permissions, school, department, coursesAssigned, sectionsAssigned } = req.body;
+    const { name, email, password, permissions, school, department, coursesAssigned, sectionsAssigned, roles } = req.body;
     
     // Validate required fields (department is now optional)
     if (!name || !email || !password || !school) {
@@ -519,11 +600,23 @@ exports.addTeacher = async (req, res) => {
     }
     
     const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Handle multi-role assignment (default to teacher if no roles provided)
+    let userRoles = ['teacher'];
+    let primaryRole = 'teacher';
+    
+    if (roles && Array.isArray(roles) && roles.length > 0) {
+      userRoles = [...new Set(roles)]; // Remove duplicates
+      primaryRole = roles[0];
+    }
+    
     const teacher = new User({ 
       name, 
       email: normalizedEmail, 
       password: hashedPassword, 
-      role: 'teacher', 
+      role: 'teacher', // Keep for backward compatibility
+      roles: userRoles,
+      primaryRole: primaryRole,
       permissions,
       school,
       department: departmentId,
@@ -571,7 +664,7 @@ exports.addTeacher = async (req, res) => {
 // Super Admin: Add admin
 exports.addAdmin = async (req, res) => {
   try {
-    const { name, email, password, permissions } = req.body;
+    const { name, email, password, permissions, roles } = req.body;
     
     // Validate email format
     if (!email || !email.includes('@') || !email.includes('.')) {
@@ -588,11 +681,23 @@ exports.addAdmin = async (req, res) => {
     }
     
     const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Handle multi-role assignment (default to admin if no roles provided)
+    let userRoles = ['admin'];
+    let primaryRole = 'admin';
+    
+    if (roles && Array.isArray(roles) && roles.length > 0) {
+      userRoles = [...new Set(roles)]; // Remove duplicates
+      primaryRole = roles[0];
+    }
+    
     const admin = new User({ 
       name, 
       email: normalizedEmail, 
       password: hashedPassword, 
-      role: 'admin', 
+      role: 'admin', // Keep for backward compatibility
+      roles: userRoles,
+      primaryRole: primaryRole,
       permissions 
     });
     
@@ -607,6 +712,432 @@ exports.addAdmin = async (req, res) => {
     res.status(201).json(admin);
   } catch (err) {
     res.status(400).json({ message: err.message });
+  }
+};
+
+// Multi-role user creation - unified function for creating users with multiple roles
+exports.createMultiRoleUser = async (req, res) => {
+  try {
+    const { 
+      name, 
+      email, 
+      password, 
+      roles, 
+      primaryRole,
+      permissions, 
+      school, 
+      department, 
+      section,
+      coursesAssigned, 
+      sectionsAssigned 
+    } = req.body;
+    
+    // Validate required fields
+    if (!name || !email || !password || !roles || !Array.isArray(roles) || roles.length === 0) {
+      return res.status(400).json({ 
+        message: 'Name, email, password, and roles array are required' 
+      });
+    }
+    
+    // Validate email format
+    if (!email.includes('@') || !email.includes('.')) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+    
+    // Normalize email
+    const normalizedEmail = email.trim().toLowerCase();
+    
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      return res.status(400).json({ 
+        message: 'A user with this email already exists' 
+      });
+    }
+    
+    // Validate roles
+    const validRoles = ['admin', 'dean', 'hod', 'teacher', 'student'];
+    const invalidRoles = roles.filter(role => !validRoles.includes(role));
+    if (invalidRoles.length > 0) {
+      return res.status(400).json({ 
+        message: `Invalid roles: ${invalidRoles.join(', ')}. Valid roles are: ${validRoles.join(', ')}` 
+      });
+    }
+    
+    // Remove duplicates from roles
+    const uniqueRoles = [...new Set(roles)];
+    
+    // Determine primary role
+    const userPrimaryRole = primaryRole && uniqueRoles.includes(primaryRole) 
+      ? primaryRole 
+      : uniqueRoles[0];
+    
+    // Validate school and department if provided
+    let schoolId = null, departmentId = null, sectionId = null;
+    
+    if (school) {
+      const schoolExists = await School.findById(school);
+      if (!schoolExists) {
+        return res.status(400).json({ message: 'Invalid school selected' });
+      }
+      schoolId = school;
+    }
+    
+    if (department) {
+      const departmentExists = await Department.findById(department);
+      if (!departmentExists) {
+        return res.status(400).json({ message: 'Invalid department selected' });
+      }
+      
+      // Verify department belongs to the selected school if school is provided
+      if (schoolId && departmentExists.school.toString() !== schoolId) {
+        return res.status(400).json({ 
+          message: 'Department does not belong to the selected school' 
+        });
+      }
+      departmentId = department;
+    }
+    
+    if (section) {
+      const Section = require('../models/Section');
+      const sectionExists = await Section.findById(section);
+      if (!sectionExists) {
+        return res.status(400).json({ message: 'Invalid section selected' });
+      }
+      sectionId = section;
+    }
+    
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Generate appropriate ID based on primary role
+    let userId = null;
+    if (userPrimaryRole === 'student') {
+      // Auto-generate registration number for students
+      const highestStudent = await User.findOne(
+        { regNo: { $regex: /^S\d{6}$/ } },
+        { regNo: 1 },
+        { sort: { regNo: -1 } }
+      );
+      
+      let nextNumber = 1;
+      if (highestStudent && highestStudent.regNo) {
+        const currentNumber = parseInt(highestStudent.regNo.substring(1), 10);
+        nextNumber = currentNumber + 1;
+      }
+      
+      userId = 'S' + nextNumber.toString().padStart(6, '0');
+    }
+    
+    // Create user with multi-role support
+    const userData = {
+      name,
+      email: normalizedEmail,
+      password: hashedPassword,
+      role: userPrimaryRole, // Keep for backward compatibility
+      roles: uniqueRoles,
+      primaryRole: userPrimaryRole,
+      permissions: permissions || [],
+      school: schoolId,
+      department: departmentId,
+      coursesAssigned: coursesAssigned || []
+    };
+    
+    // Add role-specific fields
+    if (userPrimaryRole === 'student') {
+      userData.regNo = userId;
+    } else if (userPrimaryRole === 'teacher') {
+      userData.teacherId = null; // Will be auto-generated
+    }
+    
+    const user = new User(userData);
+    const savedUser = await user.save();
+    
+    // Handle section assignment for students
+    if (sectionId && uniqueRoles.includes('student')) {
+      try {
+        const Section = require('../models/Section');
+        const sectionDoc = await Section.findById(sectionId);
+        if (sectionDoc) {
+          // Add student to section's students array if not already there
+          if (!sectionDoc.students.includes(savedUser._id)) {
+            sectionDoc.students.push(savedUser._id);
+            await sectionDoc.save();
+          }
+          
+          // Also add section to student's assignedSections array
+          await User.findByIdAndUpdate(
+            savedUser._id,
+            { $addToSet: { assignedSections: sectionId } },
+            { new: true }
+          );
+          
+          console.log(`✅ Student ${savedUser.name} successfully assigned to section ${sectionDoc.name}`);
+        }
+      } catch (sectionError) {
+        console.error('Error assigning user to section:', sectionError);
+      }
+    }
+    
+    // Handle section assignment for teachers
+    if (sectionsAssigned && uniqueRoles.includes('teacher')) {
+      try {
+        const Section = require('../models/Section');
+        for (const sectionId of sectionsAssigned) {
+          const section = await Section.findById(sectionId);
+          if (section && !section.teacher) {
+            section.teacher = savedUser._id;
+            await section.save();
+          }
+        }
+      } catch (sectionError) {
+        console.error('Error assigning teacher to sections:', sectionError);
+      }
+    }
+    
+    // Create audit log
+    await AuditLog.create({
+      action: 'create_multi_role_user',
+      performedBy: req.user._id,
+      targetUser: savedUser._id,
+      details: { 
+        name, 
+        email: normalizedEmail, 
+        roles: uniqueRoles,
+        primaryRole: userPrimaryRole,
+        school: schoolId,
+        department: departmentId
+      }
+    });
+    
+    // Populate references for response
+    await savedUser.populate('school department');
+    
+    res.status(201).json({
+      _id: savedUser._id,
+      name: savedUser.name,
+      email: savedUser.email,
+      roles: savedUser.roles,
+      primaryRole: savedUser.primaryRole,
+      school: savedUser.school,
+      department: savedUser.department,
+      regNo: savedUser.regNo,
+      teacherId: savedUser.teacherId,
+      coursesAssigned: savedUser.coursesAssigned
+    });
+  } catch (err) {
+    console.error('Error creating multi-role user:', err);
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// Get user's available roles and current active role
+exports.getUserRoles = async (req, res) => {
+  try {
+    const userId = req.params.userId || req.user._id;
+    const user = await User.findById(userId).select('roles primaryRole role name email');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Support both new multi-role and legacy single-role systems
+    const availableRoles = user.roles || [user.role];
+    const currentRole = user.primaryRole || user.role;
+    
+    res.json({
+      userId: user._id,
+      name: user.name,
+      email: user.email,
+      availableRoles,
+      currentRole,
+      primaryRole: user.primaryRole
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Switch user's active role (for multi-role users)
+exports.switchUserRole = async (req, res) => {
+  try {
+    const userId = req.params.userId || req.user._id;
+    const { newRole } = req.body;
+    
+    if (!newRole) {
+      return res.status(400).json({ message: 'New role is required' });
+    }
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Check if user has the requested role
+    const userRoles = user.roles || [user.role];
+    if (!userRoles.includes(newRole)) {
+      return res.status(403).json({ 
+        message: 'User does not have permission to switch to this role',
+        availableRoles: userRoles 
+      });
+    }
+    
+    // Update the primary role
+    user.primaryRole = newRole;
+    
+    // For backward compatibility, also update the legacy role field
+    user.role = newRole;
+    
+    await user.save();
+    
+    // Create audit log
+    await AuditLog.create({
+      action: 'switch_role',
+      performedBy: req.user._id,
+      targetUser: userId,
+      details: { 
+        fromRole: user.role,
+        toRole: newRole,
+        availableRoles: userRoles
+      }
+    });
+    
+    res.json({
+      message: 'Role switched successfully',
+      newRole,
+      availableRoles: userRoles
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Add or remove roles from a user (admin only)
+exports.updateUserRoles = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { roles, primaryRole, action, school, department, departments } = req.body;
+    
+    // If no action is specified, default to 'set' for backward compatibility
+    const updateAction = action || 'set';
+    
+    if (!roles || !Array.isArray(roles)) {
+      return res.status(400).json({ 
+        message: 'Roles array is required' 
+      });
+    }
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    const validRoles = ['admin', 'dean', 'hod', 'teacher', 'student', 'cc', 'superadmin'];
+    const invalidRoles = roles.filter(role => !validRoles.includes(role));
+    if (invalidRoles.length > 0) {
+      return res.status(400).json({ 
+        message: `Invalid roles: ${invalidRoles.join(', ')}` 
+      });
+    }
+    
+    // Validate hierarchical requirements
+    if (roles.includes('dean') && !school && !user.school) {
+      return res.status(400).json({ 
+        message: 'Dean role requires a school assignment' 
+      });
+    }
+    
+    // HOD role no longer requires a department assignment - can manage multiple or none
+    
+    let currentRoles = user.roles || [user.role];
+    let newRoles = [];
+    
+    switch (updateAction) {
+      case 'add':
+        newRoles = [...new Set([...currentRoles, ...roles])];
+        break;
+      case 'remove':
+        newRoles = currentRoles.filter(role => !roles.includes(role));
+        if (newRoles.length === 0) {
+          return res.status(400).json({ 
+            message: 'Cannot remove all roles from user' 
+          });
+        }
+        break;
+      case 'set':
+        newRoles = [...new Set(roles)];
+        break;
+      default:
+        return res.status(400).json({ 
+          message: 'Invalid action. Use: add, remove, or set' 
+        });
+    }
+    
+    // Update user roles
+    user.roles = newRoles;
+    
+    // Update primary role with hierarchy logic
+    if (primaryRole && newRoles.includes(primaryRole)) {
+      user.primaryRole = primaryRole;
+      user.role = primaryRole; // Backward compatibility
+    } else if (!newRoles.includes(user.primaryRole)) {
+      // Set primary role based on hierarchy: superadmin > admin > dean > hod > teacher > cc > student
+      const roleHierarchy = ['superadmin', 'admin', 'dean', 'hod', 'teacher', 'cc', 'student'];
+      user.primaryRole = roleHierarchy.find(role => newRoles.includes(role)) || newRoles[0];
+      user.role = user.primaryRole; // Backward compatibility
+    }
+    
+    // Update hierarchical assignments
+    if (school) {
+      user.school = school;
+    }
+    
+    // Handle both single department (legacy) and multiple departments (new)
+    if (departments && Array.isArray(departments)) {
+      user.departments = departments;
+      // Keep backward compatibility with single department field
+      if (departments.length > 0) {
+        user.department = departments[0];
+      }
+    } else if (department) {
+      user.department = department;
+      user.departments = [department];
+    }
+    
+    // Clear school/department if roles no longer require them
+    if (!newRoles.includes('dean') && !newRoles.includes('hod') && !newRoles.includes('teacher')) {
+      user.school = undefined;
+      user.department = undefined;
+      user.departments = [];
+    } else if (!newRoles.includes('hod') && !newRoles.includes('teacher')) {
+      user.department = undefined;
+      user.departments = [];
+    }
+    
+    await user.save();
+    
+    // Create audit log
+    await AuditLog.create({
+      action: 'update_user_roles',
+      performedBy: req.user._id,
+      targetUser: userId,
+      details: { 
+        action,
+        previousRoles: currentRoles,
+        newRoles,
+        primaryRole: user.primaryRole
+      }
+    });
+    
+    res.json({
+      message: 'User roles updated successfully',
+      userId: user._id,
+      name: user.name,
+      roles: user.roles,
+      primaryRole: user.primaryRole
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
@@ -781,7 +1312,7 @@ exports.createStudent = async (req, res) => {
     }
     
     console.log('Creating student with data:', req.body);
-    const { name, email, password, regNo, school, department, section, coursesAssigned } = req.body;
+    const { name, email, password, regNo, school, department, section, coursesAssigned, roles } = req.body;
     
     // Validate required fields
     if (!school) {
@@ -911,11 +1442,22 @@ exports.createStudent = async (req, res) => {
       }
     }
 
+    // Handle multi-role assignment (default to student if no roles provided)
+    let userRoles = ['student'];
+    let primaryRole = 'student';
+    
+    if (roles && Array.isArray(roles) && roles.length > 0) {
+      userRoles = [...new Set(roles)]; // Remove duplicates
+      primaryRole = roles[0];
+    }
+
     const student = new User({
       name,
       email: normalizedEmail,
       password: hashedPassword,
-      role: 'student',
+      role: 'student', // Keep for backward compatibility
+      roles: userRoles,
+      primaryRole: primaryRole,
       regNo: studentRegNo,
       school: school, // Add school reference
       department: department || null, // Add department reference

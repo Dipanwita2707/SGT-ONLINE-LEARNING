@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Drawer, 
   List, 
@@ -43,11 +43,51 @@ import GroupsIcon from '@mui/icons-material/Groups';
 import VideoCallIcon from '@mui/icons-material/VideoCall';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { hasPermission } from '../utils/permissions';
+import { useUserRole } from '../contexts/UserRoleContext';
+import RoleSwitcher from './RoleSwitcher';
 
 const Sidebar = ({ currentUser }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
+  const { activeRole, hasRole } = useUserRole();
+  
+  // CC status state for dynamic menu filtering
+  const [ccStatus, setCCStatus] = useState({ isCC: false, coursesCount: 0 });
+  
+  // Check CC status when user role changes or component mounts
+  useEffect(() => {
+    const checkCCStatus = async () => {
+      // Only check CC status if user has teacher role
+      if (currentUser && (currentUser.role === 'teacher' || currentUser.roles?.includes('teacher'))) {
+        try {
+          const token = localStorage.getItem('token');
+          const response = await fetch('/api/cc/status', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (response.ok) {
+            const status = await response.json();
+            setCCStatus(status);
+            console.log('🎯 CC Status Check:', status);
+          } else {
+            // Reset CC status on error
+            setCCStatus({ isCC: false, coursesCount: 0 });
+          }
+        } catch (error) {
+          console.error('Error checking CC status:', error);
+          setCCStatus({ isCC: false, coursesCount: 0 });
+        }
+      } else {
+        // Reset CC status for non-teachers
+        setCCStatus({ isCC: false, coursesCount: 0 });
+      }
+    };
+
+    checkCCStatus();
+  }, [currentUser, activeRole]);
   
   // Different menus based on user role
   const adminMenu = [
@@ -63,7 +103,8 @@ const Sidebar = ({ currentUser }) => {
     { text: 'HODs', icon: <SupervisorAccountIcon />, path: 'hods', color: '#607d8b' },
     { text: 'Unlock Requests', icon: <AdminPanelSettingsIcon />, path: 'unlock-requests', color: '#e91e63', isNew: true },
     { text: 'Enhanced Analytics', icon: <InsightsIcon />, path: 'enhanced-analytics', color: '#4cc9f0' },
-    { text: 'Roles', icon: <AdminPanelSettingsIcon />, path: 'roles', color: '#38b000' },
+    { text: 'User Roles', icon: <SupervisorAccountIcon />, path: 'user-roles', color: '#38b000', isNew: true },
+    { text: 'Role Permissions', icon: <AdminPanelSettingsIcon />, path: 'roles', color: '#607d8b' },
   ];
   
   const teacherMenu = [
@@ -131,6 +172,7 @@ const Sidebar = ({ currentUser }) => {
     { text: 'Dashboard', icon: <DashboardIcon />, path: 'dashboard', color: '#4361ee' },
     { text: 'Announcements', icon: <NotificationsActiveIcon />, path: 'announcements', color: '#1976d2' },
     { text: 'Announcement Approvals', icon: <AssignmentIcon />, path: 'announcement-approvals', color: '#ff9800' },
+    { text: 'Video Unlock Requests', icon: <VideoLibraryIcon />, path: 'video-unlock-requests', color: '#d32f2f', isNew: true },
     { text: 'Quiz Management', icon: <QuizIcon />, path: 'quiz-management', color: '#e91e63' },
     { text: 'CC Management', icon: <SupervisorAccountIcon />, path: 'cc-management', color: '#9c27b0', isNew: true },
     { text: 'Sections', icon: <GroupsIcon />, path: 'sections', color: '#ff5722' },
@@ -140,38 +182,53 @@ const Sidebar = ({ currentUser }) => {
     { text: 'Analytics', icon: <BarChartIcon />, path: 'analytics', color: '#4cc9f0' },
   ];
 
-  // Select menu based on user role
+  // Select menu based on active role (from context) or fallback to user role
+  const currentRole = activeRole || currentUser?.role || currentUser?.primaryRole;
   let menu = [];
   let basePath = '';
   let roleName = '';
   let roleColor = '';
   
-  if (currentUser?.role === 'admin') {
+  console.log('🎯 Sidebar Role Selection:', {
+    activeRole,
+    userRole: currentUser?.role,
+    primaryRole: currentUser?.primaryRole,
+    selectedRole: currentRole
+  });
+  
+  // Use strict role matching based on activeRole to prevent menu conflicts
+  if (currentRole === 'admin' || currentRole === 'superadmin') {
     menu = adminMenu;
     basePath = '/admin';
-    roleName = 'Administrator';
-    roleColor = '#3a0ca3';
-  } else if (currentUser?.role === 'dean') {
+    roleName = currentRole === 'superadmin' ? 'Super Admin' : 'Administrator';
+    roleColor = currentRole === 'superadmin' ? '#7b1fa2' : '#3a0ca3';
+  } else if (currentRole === 'dean') {
     menu = deanMenu;
     basePath = '/dean';
     roleName = 'Dean';
     roleColor = '#7b1fa2';
-  } else if (currentUser?.role === 'hod') {
+  } else if (currentRole === 'hod') {
     menu = hodMenu;
     basePath = '/hod';
     roleName = 'HOD';
     roleColor = '#c2185b';
-  } else if (currentUser?.role === 'teacher') {
-    // Filter teacher menu based on permissions
-    menu = teacherMenu.filter(item => 
+  } else if (currentRole === 'teacher' || currentRole === 'cc') {
+    // Filter teacher menu based on permissions and CC status
+    menu = teacherMenu.filter(item => {
+      // Special case: Hide CC Management if user is not currently a CC
+      if (item.path === 'cc-management' && !ccStatus.isCC) {
+        return false;
+      }
+      
       // Include if permission is null (always show) or user has the permission
-      item.permission === null || 
-      (currentUser.permissions && hasPermission(currentUser, item.permission))
-    );
+      return item.permission === null || 
+        (currentUser.permissions && hasPermission(currentUser, item.permission));
+    });
     basePath = '/teacher';
-    roleName = 'Teacher';
-    roleColor = '#38b000';
-  } else if (currentUser?.role === 'student') {
+    // Update role name based on actual CC status, not just activeRole
+    roleName = ccStatus.isCC ? `Course Coordinator (${ccStatus.coursesCount} course${ccStatus.coursesCount !== 1 ? 's' : ''})` : 'Teacher';
+    roleColor = ccStatus.isCC ? '#00796b' : '#38b000';
+  } else if (currentRole === 'student') {
     menu = studentMenu;
     basePath = '/student';
     roleName = 'Student';
@@ -209,8 +266,10 @@ const Sidebar = ({ currentUser }) => {
         background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
         height: 80,
         display: 'flex',
-        justifyContent: 'center',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+        px: 2
       }}>
         <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', letterSpacing: '0.5px' }}>
           SGT Learning

@@ -6,6 +6,7 @@ const Course = require('../models/Course');
 const Video = require('../models/Video');
 const QuizAttempt = require('../models/QuizAttempt');
 const StudentProgress = require('../models/StudentProgress');
+const SectionCourseTeacher = require('../models/SectionCourseTeacher');
 const mongoose = require('mongoose');
 const QuestionReview = require('../models/QuestionReview');
 
@@ -22,16 +23,110 @@ const getHODDashboard = async (req, res) => {
 
     const departmentId = hod.department._id;
 
-    // Get department statistics
+    // Get department statistics with multi-role support
     const [teacherCount, studentCount, sectionCount, courseCount, coursesWithCCs] = await Promise.all([
-      User.countDocuments({ department: departmentId, role: 'teacher' }),
-      User.countDocuments({ department: departmentId, role: 'student' }),
-      Section.countDocuments({ department: departmentId }),
+      // Count users who can teach (including multi-role users)
+      User.countDocuments({ 
+        department: departmentId, 
+        $or: [
+          { role: 'teacher' },
+          { roles: { $in: ['teacher'] } }
+        ],
+        isActive: { $ne: false }
+      }),
+      // Count students in sections that have courses from this department
+      User.aggregate([
+        {
+          $match: {
+            $or: [
+              { role: 'student' },
+              { roles: { $in: ['student'] } }
+            ],
+            isActive: { $ne: false },
+            assignedSections: { $exists: true, $ne: [] }
+          }
+        },
+        {
+          $lookup: {
+            from: 'sectioncourseteachers',
+            let: { userSections: '$assignedSections' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $in: ['$section', '$$userSections'] }
+                }
+              },
+              {
+                $lookup: {
+                  from: 'courses',
+                  localField: 'course',
+                  foreignField: '_id',
+                  as: 'courseData'
+                }
+              },
+              {
+                $match: {
+                  'courseData.department': departmentId
+                }
+              }
+            ],
+            as: 'departmentCourses'
+          }
+        },
+        {
+          $match: {
+            departmentCourses: { $ne: [] }
+          }
+        },
+        { $count: 'total' }
+      ]).then(result => result.length > 0 ? result[0].total : 0),
+      // Count sections in the same school that contain courses from this department
+      SectionCourseTeacher.aggregate([
+        {
+          $lookup: {
+            from: 'courses',
+            localField: 'course',
+            foreignField: '_id',
+            as: 'courseData'
+          }
+        },
+        {
+          $match: {
+            'courseData.department': departmentId
+          }
+        },
+        {
+          $lookup: {
+            from: 'sections',
+            localField: 'section',
+            foreignField: '_id',
+            as: 'sectionData'
+          }
+        },
+        {
+          $match: {
+            'sectionData.school': hod.department.school
+          }
+        },
+        {
+          $group: {
+            _id: '$section'
+          }
+        },
+        { $count: 'total' }
+      ]).then(result => result.length > 0 ? result[0].total : 0),
       Course.countDocuments({ department: departmentId }),
       Course.find({ department: departmentId })
         .populate('coordinators', 'name email teacherId')
         .select('title courseCode coordinators')
     ]);
+    
+    console.log(`📊 HOD Dashboard stats for department ${hod.department.name}:`, {
+      teachers: teacherCount,
+      students: studentCount,
+      sections: sectionCount,
+      courses: courseCount
+    });
 
     // Get pending announcements count
     const pendingAnnouncementsCount = await Announcement.countDocuments({
@@ -202,18 +297,47 @@ const getDepartmentTeachers = async (req, res) => {
 
     const departmentId = hod.department._id;
 
-    // Get all teachers in the department
+    // Get all teachers in the department (including multi-role users)
     const teachers = await User.find({ 
       department: departmentId, 
-      role: 'teacher',
+      $or: [
+        { role: 'teacher' },
+        { roles: { $in: ['teacher'] } }
+      ],
       isActive: { $ne: false }
     })
-    .select('name email teacherId assignedSections coursesAssigned')
-    .populate('assignedSections', 'name')
-    .populate('coursesAssigned', 'title courseCode')
+    .select('name email teacherId')
     .sort({ name: 1 });
 
-    res.json(teachers);
+    // For each teacher, get their actual assignments from SectionCourseTeacher model
+    
+    const teachersWithAssignments = await Promise.all(teachers.map(async (teacher) => {
+      const assignments = await SectionCourseTeacher.getTeacherAssignments(teacher._id);
+      
+      // Extract unique sections and courses
+      const assignedSections = assignments.map(a => ({
+        _id: a.section._id,
+        name: a.section.name
+      }));
+      
+      const coursesAssigned = assignments.map(a => ({
+        _id: a.course._id,
+        title: a.course.title,
+        courseCode: a.course.courseCode
+      }));
+
+      return {
+        _id: teacher._id,
+        name: teacher.name,
+        email: teacher.email,
+        teacherId: teacher.teacherId,
+        assignedSections: assignedSections,
+        coursesAssigned: coursesAssigned,
+        totalAssignments: assignments.length
+      };
+    }));
+
+    res.json(teachersWithAssignments);
   } catch (error) {
     console.error('Error fetching department teachers:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -237,9 +361,13 @@ const assignCourseToTeacher = async (req, res) => {
       return res.status(404).json({ message: 'HOD department not found' });
     }
 
-    // Verify teacher exists and is in same department
+    // Verify teacher exists and is in same department (support multi-role users)
     const teacher = await User.findById(teacherId);
-    if (!teacher || teacher.role !== 'teacher' || teacher.department?.toString() !== hod.department._id.toString()) {
+    const hasTeacherRole = teacher && (
+      teacher.role === 'teacher' || 
+      (teacher.roles && teacher.roles.includes('teacher'))
+    );
+    if (!teacher || !hasTeacherRole || teacher.department?.toString() !== hod.department._id.toString()) {
       return res.status(403).json({ message: 'Teacher must be in your department' });
     }
 
@@ -294,7 +422,11 @@ const removeCourseFromTeacher = async (req, res) => {
     }
 
     const teacher = await User.findById(teacherId);
-    if (!teacher || teacher.role !== 'teacher' || teacher.department?.toString() !== hod.department._id.toString()) {
+    const hasTeacherRole = teacher && (
+      teacher.role === 'teacher' || 
+      (teacher.roles && teacher.roles.includes('teacher'))
+    );
+    if (!teacher || !hasTeacherRole || teacher.department?.toString() !== hod.department._id.toString()) {
       return res.status(403).json({ message: 'Teacher must be in your department' });
     }
 
@@ -341,19 +473,26 @@ const changeTeacherSection = async (req, res) => {
       return res.status(400).json({ message: 'teacherId (param) and toSectionId (body) are required' });
     }
 
-    const hod = await User.findById(hodId).populate('department');
-    if (!hod || !hod.department) {
-      return res.status(404).json({ message: 'HOD department not found' });
+    const hod = await User.findById(hodId).populate({
+      path: 'department',
+      populate: { path: 'school' }
+    });
+    if (!hod || !hod.department || !hod.department.school) {
+      return res.status(404).json({ message: 'HOD department or school not found' });
     }
 
     const teacher = await User.findById(teacherId);
-    if (!teacher || teacher.role !== 'teacher' || teacher.department?.toString() !== hod.department._id.toString()) {
+    const hasTeacherRole = teacher && (
+      teacher.role === 'teacher' || 
+      (teacher.roles && teacher.roles.includes('teacher'))
+    );
+    if (!teacher || !hasTeacherRole || teacher.department?.toString() !== hod.department._id.toString()) {
       return res.status(403).json({ message: 'Teacher must be in your department' });
     }
 
     const targetSection = await Section.findById(toSectionId);
-    if (!targetSection || targetSection.department?.toString() !== hod.department._id.toString()) {
-      return res.status(403).json({ message: 'Target section must be in your department' });
+    if (!targetSection || targetSection.school?.toString() !== hod.department.school._id.toString()) {
+      return res.status(403).json({ message: 'Target section must be in your school' });
     }
 
     // Find any current sections where this teacher is assigned and clear them (one-teacher-one-section rule assumed)
@@ -400,55 +539,79 @@ const getDepartmentSections = async (req, res) => {
   try {
     const hodId = req.user.id;
     
-    // Get HOD's department
-    const hod = await User.findById(hodId).populate('department');
+    // Get HOD's department and school
+    const hod = await User.findById(hodId).populate({
+      path: 'department',
+      populate: { path: 'school' }
+    });
     if (!hod || !hod.department) {
       return res.status(404).json({ message: 'HOD department not found' });
     }
+    if (!hod.department.school) {
+      return res.status(404).json({ message: 'Department school not found' });
+    }
 
     const departmentId = hod.department._id;
+    const schoolId = hod.department.school._id;
 
-    // Get all sections in the department with student count (via assignedSections)
-    const sections = await Section.aggregate([
-      { $match: { department: departmentId } },
-      {
-        $lookup: {
-          from: 'users',
-          let: { sectionId: '$_id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ['$role', 'student'] },
-                    { $ne: ['$isActive', false] },
-                    { $in: ['$$sectionId', { $ifNull: ['$assignedSections', []] }] }
-                  ]
-                }
-              }
-            },
-            { $project: { _id: 1 } }
-          ],
-          as: 'students'
-        }
-      },
-      {
-        $addFields: {
-          studentCount: { $size: '$students' }
-        }
-      },
-      {
-        $project: {
-          name: 1,
-          department: 1,
-          studentCount: 1,
-          createdAt: 1
-        }
-      },
-      { $sort: { name: 1 } }
-    ]);
+    console.log(`🔍 HOD ${hod.name} looking for sections in school ${hod.department.school.name} that contain courses from department ${hod.department.name}`);
 
-    res.json(sections);
+    // Find sections that have courses from HOD's department using SectionCourseTeacher
+    const sectionCourseTeachers = await SectionCourseTeacher.find({})
+      .populate({
+        path: 'course',
+        match: { department: departmentId },
+        select: '_id title courseCode'
+      })
+      .populate('section', '_id school name');
+
+    // Filter valid sections (those in the same school with department courses)
+    const validSectionCourses = sectionCourseTeachers.filter(sct => 
+      sct.course && sct.section && sct.section.school.toString() === schoolId.toString()
+    );
+
+    // Group by section and collect unique sections
+    const sectionMap = {};
+    validSectionCourses.forEach(sct => {
+      const sectionId = sct.section._id.toString();
+      if (!sectionMap[sectionId]) {
+        sectionMap[sectionId] = {
+          section: sct.section,
+          courseCount: 0
+        };
+      }
+      sectionMap[sectionId].courseCount++;
+    });
+
+    // For each section, get student count and build response
+    const sectionsResult = [];
+    
+    for (const [sectionId, data] of Object.entries(sectionMap)) {
+      const { section, courseCount } = data;
+      
+      // Get students assigned to this section
+      const studentCount = await User.countDocuments({
+        $or: [{ role: 'student' }, { roles: 'student' }],
+        isActive: { $ne: false },
+        assignedSections: section._id
+      });
+
+      sectionsResult.push({
+        _id: section._id,
+        name: section.name,
+        school: section.school,
+        studentCount,
+        courseCount,
+        createdAt: section.createdAt
+      });
+    }
+
+    // Sort sections by name
+    sectionsResult.sort((a, b) => a.name.localeCompare(b.name));
+
+    console.log(`✅ Found ${sectionsResult.length} sections for HOD ${hod.name}`);
+    
+    res.json({ sections: sectionsResult });
   } catch (error) {
     console.error('Error fetching department sections:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -468,87 +631,71 @@ const getDepartmentCourses = async (req, res) => {
 
     const departmentId = hod.department._id;
 
-    // Get all courses in the department with teacher and student information
-    const courses = await Course.aggregate([
-      { $match: { department: departmentId, isActive: { $ne: false } } },
-      {
-        $lookup: {
-          from: 'users',
-          let: { courseId: '$_id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ['$role', 'teacher'] },
-                    { $in: ['$$courseId', '$coursesAssigned'] },
-                    { $ne: ['$isActive', false] }
-                  ]
-                }
-              }
-            },
-            { $project: { name: 1, email: 1, teacherId: 1 } }
-          ],
-          as: 'assignedTeachers'
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          let: { courseId: '$_id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ['$role', 'student'] },
-                    { $in: ['$$courseId', '$coursesAssigned'] },
-                    { $ne: ['$isActive', false] }
-                  ]
-                }
-              }
-            },
-            { $project: { name: 1, email: 1, regNo: 1 } }
-          ],
-          as: 'enrolledStudents'
-        }
-      },
-      {
-        $lookup: {
-          from: 'videos',
-          localField: '_id',
-          foreignField: 'course',
-          as: 'videos'
-        }
-      },
-      {
-        $addFields: {
-          teacherCount: { $size: '$assignedTeachers' },
-          studentCount: { $size: '$enrolledStudents' },
-          videoCount: { $size: '$videos' }
-        }
-      },
-      {
-        $project: {
-          title: 1,
-          courseCode: 1,
-          description: 1,
-          semester: 1,
-          year: 1,
-          createdAt: 1,
-          assignedTeachers: 1,
-          enrolledStudents: { $slice: ['$enrolledStudents', 10] }, // Limit to 10 students for performance
-          teacherCount: 1,
-          studentCount: 1,
-          videoCount: 1
-        }
-      },
-      { $sort: { title: 1 } }
-    ]);
+    // Get all courses in the department
+    const departmentCourses = await Course.find({ 
+      department: departmentId, 
+      isActive: { $ne: false } 
+    }).lean();
+
+    // Get teacher assignments using SectionCourseTeacher model
+    const SectionCourseTeacher = require('../models/SectionCourseTeacher');
+    const coursesWithDetails = await Promise.all(departmentCourses.map(async (course) => {
+      try {
+        // Get teacher assignments for this course
+        const assignments = await SectionCourseTeacher.find({ course: course._id })
+          .populate('teacher', 'name email teacherId')
+          .populate('section', 'name code')
+          .lean();
+
+        // Get video count
+        const Video = require('../models/Video');
+        const videoCount = await Video.countDocuments({ course: course._id });
+
+        // Get enrolled students count from sections containing this course
+        const Section = require('../models/Section');
+        const sectionsWithCourse = await Section.find({ 
+          courses: course._id 
+        }).populate('students', '_id');
+        
+        const totalStudents = sectionsWithCourse.reduce((total, section) => {
+          return total + (section.students ? section.students.length : 0);
+        }, 0);
+
+        // Extract unique teachers and their sections
+        const assignedTeachers = assignments.map(assignment => ({
+          _id: assignment.teacher._id,
+          name: assignment.teacher.name,
+          email: assignment.teacher.email,
+          teacherId: assignment.teacher.teacherId,
+          section: assignment.section ? {
+            _id: assignment.section._id,
+            name: assignment.section.name,
+            code: assignment.section.code
+          } : null
+        }));
+
+        return {
+          ...course,
+          assignedTeachers,
+          teacherCount: assignedTeachers.length,
+          studentCount: totalStudents,
+          videoCount
+        };
+      } catch (error) {
+        console.error(`Error processing course ${course.title}:`, error);
+        return {
+          ...course,
+          assignedTeachers: [],
+          teacherCount: 0,
+          studentCount: 0,
+          videoCount: 0
+        };
+      }
+    }));
 
     res.json({
       department: hod.department,
-      courses
+      courses: coursesWithDetails.sort((a, b) => a.title.localeCompare(b.title))
     });
   } catch (error) {
     console.error('Error fetching department courses:', error);
@@ -688,10 +835,24 @@ const getDepartmentAnalytics = async (req, res) => {
 
     // Get basic department stats
     const [teachers, students, courses, sections] = await Promise.all([
-      User.find({ department: departmentId, role: 'teacher', isActive: { $ne: false } })
+      User.find({ 
+        department: departmentId, 
+        $or: [
+          { role: 'teacher' },
+          { roles: { $in: ['teacher'] } }
+        ],
+        isActive: { $ne: false } 
+      })
         .select('name email teacherId createdAt')
         .sort({ name: 1 }),
-      User.find({ department: departmentId, role: 'student', isActive: { $ne: false } })
+      User.find({ 
+        department: departmentId, 
+        $or: [
+          { role: 'student' },
+          { roles: { $in: ['student'] } }
+        ],
+        isActive: { $ne: false } 
+      })
         .select('name email regNo createdAt')
         .sort({ name: 1 }),
       Course.find({ department: departmentId })
@@ -946,7 +1107,15 @@ const getCourseRelations = async (req, res) => {
 
     // Teachers from sections + legacy assignments
     const sectionTeachers = courseSections.map(s => s.teacher).filter(Boolean);
-    const legacyTeachers = await User.find({ role: 'teacher', department: hod.department._id, coursesAssigned: { $in: [course._id] }, isActive: { $ne: false } })
+    const legacyTeachers = await User.find({ 
+      $or: [
+        { role: 'teacher' },
+        { roles: { $in: ['teacher'] } }
+      ], 
+      department: hod.department._id, 
+      coursesAssigned: { $in: [course._id] }, 
+      isActive: { $ne: false } 
+    })
       .select('_id name email teacherId');
     const teacherMap = new Map();
     [...sectionTeachers, ...legacyTeachers].forEach(t => { if (t) teacherMap.set(t._id.toString(), t); });
@@ -1188,6 +1357,117 @@ const getSectionAnalytics = async (req, res) => {
   try {
     const hodId = req.user.id;
     
+    // Get HOD's department with school
+    const hod = await User.findById(hodId).populate({
+      path: 'department',
+      populate: { path: 'school' }
+    });
+    if (!hod || !hod.department || !hod.department.school) {
+      return res.status(404).json({ message: 'HOD department or school not found' });
+    }
+
+    const departmentId = hod.department._id;
+    const schoolId = hod.department.school._id;
+
+    // Find sections that belong to HOD's school and have courses from HOD's department
+    const sectionCourseTeachers = await SectionCourseTeacher.find({})
+      .populate({
+        path: 'course',
+        match: { department: departmentId },
+        select: '_id'
+      })
+      .populate('section', '_id school name');
+
+    // Filter and group by section
+    const validSectionCourses = sectionCourseTeachers.filter(sct => 
+      sct.course && sct.section && sct.section.school.toString() === schoolId.toString()
+    );
+
+    const sectionMap = {};
+    validSectionCourses.forEach(sct => {
+      const sectionId = sct.section._id.toString();
+      if (!sectionMap[sectionId]) {
+        sectionMap[sectionId] = {
+          section: sct.section,
+          courseIds: []
+        };
+      }
+      sectionMap[sectionId].courseIds.push(sct.course._id);
+    });
+
+    const sectionAnalytics = [];
+
+    for (const [sectionId, data] of Object.entries(sectionMap)) {
+      const { section, courseIds } = data;
+
+      // Get students assigned to this section
+      const students = await User.find({
+        role: 'student',
+        isActive: { $ne: false },
+        assignedSections: section._id
+      }).select('_id');
+
+      const studentIds = students.map(s => s._id);
+
+      // Get progress for these students in department courses
+      const progress = await StudentProgress.find({
+        student: { $in: studentIds },
+        course: { $in: courseIds }
+      });
+
+      // Get quiz attempts for these students in department courses
+      const quizAttempts = await QuizAttempt.find({
+        student: { $in: studentIds },
+        course: { $in: courseIds },
+        isComplete: true
+      });
+
+      // Calculate statistics
+      const avgProgress = progress.length > 0 
+        ? progress.reduce((sum, p) => sum + (p.overallProgress || 0), 0) / progress.length 
+        : 0;
+
+      const avgQuizScore = quizAttempts.length > 0 
+        ? quizAttempts.reduce((sum, q) => sum + (q.percentage || 0), 0) / quizAttempts.length 
+        : 0;
+
+      const passedQuizzes = quizAttempts.filter(q => q.passed).length;
+      const quizPassRate = quizAttempts.length > 0 ? (passedQuizzes / quizAttempts.length) * 100 : 0;
+
+      const recentActivity = progress.filter(p => 
+        p.lastActivity && p.lastActivity >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      );
+
+      sectionAnalytics.push({
+        _id: section._id,
+        name: section.name,
+        studentCount: studentIds.length,
+        courseCount: courseIds.length,
+        avgProgress: Math.round(avgProgress * 100) / 100,
+        totalQuizAttempts: quizAttempts.length,
+        avgQuizScore: Math.round(avgQuizScore * 100) / 100,
+        quizPassRate: Math.round(quizPassRate * 100) / 100,
+        activeStudents: recentActivity.length,
+        createdAt: section.createdAt
+      });
+    }
+
+    // Sort sections by name
+    sectionAnalytics.sort((a, b) => a.name.localeCompare(b.name));
+
+    res.json(sectionAnalytics);
+  } catch (error) {
+    console.error('Error fetching section analytics:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Get detailed analytics for a specific section
+const getSpecificSectionAnalytics = async (req, res) => {
+  try {
+    const hodId = req.user.id;
+    const sectionId = req.params.sectionId;
+    
     // Get HOD's department
     const hod = await User.findById(hodId).populate('department');
     if (!hod || !hod.department) {
@@ -1196,138 +1476,150 @@ const getSectionAnalytics = async (req, res) => {
 
     const departmentId = hod.department._id;
 
-    // Get sections with detailed analytics (tie students via assignedSections and restrict analytics to section.courses)
-    const sectionAnalytics = await Section.aggregate([
-      { $match: { department: departmentId } },
-      // Load students mapped to this section
-      {
-        $lookup: {
-          from: 'users',
-          let: { sectionId: '$_id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ['$role', 'student'] },
-                    { $ne: ['$isActive', false] },
-                    { $in: ['$$sectionId', { $ifNull: ['$assignedSections', []] }] }
-                  ]
-                }
-              }
-            },
-            { $project: { _id: 1 } }
-          ],
-          as: 'students'
-        }
-      },
-      {
-        $addFields: {
-          studentCount: { $size: '$students' },
-          courseCount: { $size: { $ifNull: ['$courses', []] } }
-        }
-      },
-      // Progress limited to these students and these courses
-      {
-        $lookup: {
-          from: 'studentprogresses',
-          let: { studentIds: '$students._id', courseIds: { $ifNull: ['$courses', []] } },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $in: ['$student', '$$studentIds'] },
-                    { $in: ['$course', '$$courseIds'] }
-                  ]
-                }
-              }
-            }
-          ],
-          as: 'progress'
-        }
-      },
-      // Quiz attempts limited similarly, only completed
-      {
-        $lookup: {
-          from: 'quizattempts',
-          let: { studentIds: '$students._id', courseIds: { $ifNull: ['$courses', []] } },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $in: ['$student', '$$studentIds'] },
-                    { $in: ['$course', '$$courseIds'] }
-                  ]
-                },
-                isComplete: true
-              }
-            }
-          ],
-          as: 'quizAttempts'
-        }
-      },
-      {
-        $addFields: {
-          avgProgress: { $avg: '$progress.overallProgress' },
-          totalQuizAttempts: { $size: '$quizAttempts' },
-          avgQuizScore: { $avg: '$quizAttempts.percentage' },
-          quizPassRate: {
-            $cond: [
-              { $gt: [{ $size: '$quizAttempts' }, 0] },
-              {
-                $multiply: [
-                  { $divide: [
-                    { $size: { $filter: { input: '$quizAttempts', cond: { $eq: ['$$this.passed', true] } } } },
-                    { $size: '$quizAttempts' }
-                  ] },
-                  100
-                ]
-              },
-              0
-            ]
-          },
-          activeStudents: {
-            $size: {
-              $setUnion: [
-                {
-                  $map: {
-                    input: {
-                      $filter: {
-                        input: '$progress',
-                        cond: { $gte: ['$$this.lastActivity', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)] }
-                      }
-                    },
-                    as: 'p',
-                    in: '$$p.student'
-                  }
-                },
-                []
-              ]
-            }
-          }
-        }
-      },
-      {
-        $project: {
-          name: 1,
-          studentCount: 1,
-          courseCount: 1,
-          avgProgress: 1,
-          totalQuizAttempts: 1,
-          avgQuizScore: 1,
-          quizPassRate: 1,
-          activeStudents: 1,
-          createdAt: 1
-        }
-      },
-      { $sort: { name: 1 } }
-    ]);
+    // Verify section exists and belongs to HOD's school (sections belong to school, not department)
+    const section = await Section.findById(sectionId).populate('school');
+    if (!section) {
+      return res.status(404).json({ message: 'Section not found' });
+    }
 
-    res.json(sectionAnalytics);
+    // Check if HOD's department school matches section's school
+    const hodDepartment = await Department.findById(departmentId).populate('school');
+    if (section.school._id.toString() !== hodDepartment.school._id.toString()) {
+      return res.status(403).json({ message: 'Access denied to this section' });
+    }
+
+    // Get students assigned to this section
+    const sectionStudents = await User.find({
+      role: 'student',
+      isActive: { $ne: false },
+      assignedSections: sectionId
+    }).select('name email rollNumber');
+
+    // Get courses assigned to this section with teacher details using SectionCourseTeacher
+    const sectionCourseTeachers = await SectionCourseTeacher.find({ section: sectionId })
+      .populate({
+        path: 'course',
+        select: 'name code credits description',
+        populate: {
+          path: 'department',
+          select: 'name'
+        }
+      })
+      .populate('teacher', 'name email')
+      .populate('section', 'name');
+
+    // Get detailed progress for each student in each course
+    const studentProgress = await StudentProgress.find({
+      student: { $in: sectionStudents.map(s => s._id) },
+      course: { $in: sectionCourseTeachers.map(sct => sct.course._id) }
+    }).populate('student', 'name email rollNumber')
+      .populate('course', 'title courseCode');
+
+    // Get quiz attempts for section students in section courses
+    const quizAttempts = await QuizAttempt.find({
+      student: { $in: sectionStudents.map(s => s._id) },
+      course: { $in: sectionCourseTeachers.map(sct => sct.course._id) },
+      isComplete: true
+    }).populate('student', 'name email rollNumber')
+      .populate('course', 'title courseCode');
+
+    // Calculate course-wise statistics
+    const courseStats = sectionCourseTeachers.map(sct => {
+      const courseProgress = studentProgress.filter(sp => sp.course._id.toString() === sct.course._id.toString());
+      const courseQuizzes = quizAttempts.filter(qa => qa.course._id.toString() === sct.course._id.toString());
+      
+      const avgProgress = courseProgress.length > 0 
+        ? courseProgress.reduce((sum, cp) => sum + (cp.overallProgress || 0), 0) / courseProgress.length 
+        : 0;
+      
+      const avgQuizScore = courseQuizzes.length > 0 
+        ? courseQuizzes.reduce((sum, cq) => sum + (cq.percentage || 0), 0) / courseQuizzes.length 
+        : 0;
+      
+      const passedQuizzes = courseQuizzes.filter(cq => cq.passed).length;
+      const passRate = courseQuizzes.length > 0 ? (passedQuizzes / courseQuizzes.length) * 100 : 0;
+
+      return {
+        course: sct.course,
+        teacher: sct.teacher,
+        enrolledStudents: courseProgress.length,
+        averageProgress: Math.round(avgProgress * 100) / 100,
+        averageQuizScore: Math.round(avgQuizScore * 100) / 100,
+        quizPassRate: Math.round(passRate * 100) / 100,
+        totalQuizAttempts: courseQuizzes.length,
+        activeStudents: courseProgress.filter(cp => 
+          cp.lastActivity && cp.lastActivity >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+        ).length
+      };
+    });
+
+    // Calculate student-wise statistics
+    const studentStats = sectionStudents.map(student => {
+      const studentCourseProgress = studentProgress.filter(sp => sp.student._id.toString() === student._id.toString());
+      const studentQuizzes = quizAttempts.filter(qa => qa.student._id.toString() === student._id.toString());
+      
+      const avgProgress = studentCourseProgress.length > 0 
+        ? studentCourseProgress.reduce((sum, scp) => sum + (scp.overallProgress || 0), 0) / studentCourseProgress.length 
+        : 0;
+      
+      const avgQuizScore = studentQuizzes.length > 0 
+        ? studentQuizzes.reduce((sum, sq) => sum + (sq.percentage || 0), 0) / studentQuizzes.length 
+        : 0;
+      
+      const passedQuizzes = studentQuizzes.filter(sq => sq.passed).length;
+      const passRate = studentQuizzes.length > 0 ? (passedQuizzes / studentQuizzes.length) * 100 : 0;
+
+      const lastActivity = studentCourseProgress.reduce((latest, scp) => {
+        return scp.lastActivity && (!latest || scp.lastActivity > latest) ? scp.lastActivity : latest;
+      }, null);
+
+      return {
+        student: student,
+        enrolledCourses: studentCourseProgress.length,
+        averageProgress: Math.round(avgProgress * 100) / 100,
+        averageQuizScore: Math.round(avgQuizScore * 100) / 100,
+        quizPassRate: Math.round(passRate * 100) / 100,
+        totalQuizAttempts: studentQuizzes.length,
+        lastActivity: lastActivity,
+        isActive: lastActivity && lastActivity >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      };
+    });
+
+    // Calculate overall section statistics
+    const sectionStats = {
+      totalStudents: sectionStudents.length,
+      totalCourses: sectionCourseTeachers.length,
+      averageProgress: studentStats.length > 0 
+        ? studentStats.reduce((sum, ss) => sum + ss.averageProgress, 0) / studentStats.length 
+        : 0,
+      averageQuizScore: studentStats.length > 0 
+        ? studentStats.reduce((sum, ss) => sum + ss.averageQuizScore, 0) / studentStats.length 
+        : 0,
+      totalQuizAttempts: quizAttempts.length,
+      activeStudents: studentStats.filter(ss => ss.isActive).length,
+      quizPassRate: quizAttempts.length > 0 
+        ? (quizAttempts.filter(qa => qa.passed).length / quizAttempts.length) * 100 
+        : 0
+    };
+
+    res.json({
+      section: {
+        _id: section._id,
+        name: section.name,
+        school: section.school
+      },
+      statistics: {
+        ...sectionStats,
+        averageProgress: Math.round(sectionStats.averageProgress * 100) / 100,
+        averageQuizScore: Math.round(sectionStats.averageQuizScore * 100) / 100,
+        quizPassRate: Math.round(sectionStats.quizPassRate * 100) / 100
+      },
+      courseBreakdown: courseStats,
+      studentPerformance: studentStats,
+      lastUpdated: new Date()
+    });
   } catch (error) {
-    console.error('Error fetching section analytics:', error);
+    console.error('Error fetching specific section analytics:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -1417,6 +1709,67 @@ const getStudentDetailedAnalytics = async (req, res) => {
   }
 };
 
+// Get available sections for a teacher-course assignment (smart section selection)
+const getAvailableSectionsForTeacherCourse = async (req, res) => {
+  try {
+    const hodId = req.user.id;
+    const { teacherId, courseId } = req.params;
+
+    // Get HOD's department and school
+    const hod = await User.findById(hodId).populate({
+      path: 'department',
+      populate: { path: 'school' }
+    });
+    if (!hod || !hod.department || !hod.department.school) {
+      return res.status(404).json({ message: 'HOD department or school not found' });
+    }
+
+    // Verify teacher belongs to HOD's department
+    const teacher = await User.findById(teacherId);
+    const hasTeacherRole = teacher && (
+      teacher.role === 'teacher' || 
+      (teacher.roles && teacher.roles.includes('teacher'))
+    );
+    if (!teacher || !hasTeacherRole || teacher.department?.toString() !== hod.department._id.toString()) {
+      return res.status(403).json({ message: 'Teacher must be in your department' });
+    }
+
+    // Verify course belongs to HOD's department
+    const course = await Course.findById(courseId);
+    if (!course || course.department.toString() !== hod.department._id.toString()) {
+      return res.status(403).json({ message: 'Course must be in your department' });
+    }
+
+    // Find sections in the same school that contain this specific course
+    const availableSections = await Section.find({
+      school: hod.department.school._id,
+      courses: courseId,
+      isActive: { $ne: false }
+    })
+    .select('name code courses school')
+    .populate('school', 'name')
+    .sort({ name: 1 });
+
+    res.json({
+      teacher: {
+        _id: teacher._id,
+        name: teacher.name,
+        email: teacher.email
+      },
+      course: {
+        _id: course._id,
+        title: course.title,
+        courseCode: course.courseCode
+      },
+      availableSections: availableSections,
+      message: `Found ${availableSections.length} sections where ${course.title} is taught`
+    });
+  } catch (error) {
+    console.error('Error getting available sections for teacher-course:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 module.exports = {
   getHODDashboard,
   getPendingAnnouncements,
@@ -1431,12 +1784,14 @@ module.exports = {
   getCourseAnalytics,
   getStudentAnalytics,
   getSectionAnalytics,
+  getSpecificSectionAnalytics,
   getStudentDetailedAnalytics,
   getCourseRelations,
   getCourseSections,
   assignCourseToTeacher,
   removeCourseFromTeacher,
   changeTeacherSection,
+  getAvailableSectionsForTeacherCourse,
   // CC related (defined below)
   assignCourseCoordinator,
   removeCourseCoordinator,
@@ -1451,28 +1806,46 @@ module.exports = {
 };
 
 // Assign a Course Coordinator (CC) to a course (HOD only)
-// A teacher can only be a CC for one course at a time
+// BUSINESS RULE: One course can have only ONE CC, and one teacher can be CC for only ONE course
 async function assignCourseCoordinator(req, res) {
   try {
     const hod = await User.findById(req.user.id).populate('department');
     if (!hod || !hod.department) return res.status(404).json({ message: 'HOD department not found' });
     const { courseId, userId } = req.body;
+    
+    // Validate course exists and belongs to HOD's department
     const course = await Course.findOne({ _id: courseId, department: hod.department._id });
     if (!course) return res.status(404).json({ message: 'Course not found in your department' });
+    
+    // Validate user exists and belongs to HOD's department
     const user = await User.findById(userId);
     if (!user || user.department?.toString() !== hod.department._id.toString()) {
       return res.status(400).json({ message: 'User must belong to your department' });
     }
-    // Ensure user is a teacher
-    if (user.role !== 'teacher') return res.status(400).json({ message: 'User is not a teacher' });
-    // Remove this teacher from all other courses' coordinators in the department
+    
+    // Ensure user is a teacher (support multi-role users)
+    const hasTeacherRole = user.role === 'teacher' || (user.roles && user.roles.includes('teacher'));
+    if (!hasTeacherRole) return res.status(400).json({ message: 'User is not a teacher' });
+    
+    // RULE 1: Remove this teacher from ALL other courses' coordinators in the department
+    // (One teacher can be CC for only one course)
     await Course.updateMany(
       { department: hod.department._id, coordinators: userId, _id: { $ne: courseId } },
       { $pull: { coordinators: userId } }
     );
-    // Assign as CC to the selected course
-    await Course.findByIdAndUpdate(courseId, { $addToSet: { coordinators: userId } });
-    return res.json({ message: 'Coordinator assigned to course (and removed from other courses if needed)' });
+    
+    // RULE 2: Remove ALL existing coordinators from this course
+    // (One course can have only one CC)
+    await Course.findByIdAndUpdate(courseId, { coordinators: [] });
+    
+    // RULE 3: Assign the new teacher as the ONLY CC for this course
+    await Course.findByIdAndUpdate(courseId, { coordinators: [userId] });
+    
+    return res.json({ 
+      message: 'Coordinator assigned successfully. Previous coordinators removed (one course = one CC rule).',
+      teacherName: user.name,
+      courseName: course.title
+    });
   } catch (e) {
     console.error('assignCourseCoordinator error:', e);
     return res.status(500).json({ message: 'Internal server error' });

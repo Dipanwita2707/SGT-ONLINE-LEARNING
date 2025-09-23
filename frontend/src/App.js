@@ -13,7 +13,9 @@ const DeanDashboard = lazy(() => import('./pages/DeanDashboard'));
 const HODDashboard = lazy(() => import('./pages/HODDashboard'));
 const CCDashboard = lazy(() => import('./pages/CCDashboard'));
 import PrivateRoute from './components/PrivateRoute';
+import RoleBasedRedirect from './components/RoleBasedRedirect';
 import { restoreUserFromToken } from './utils/authService';
+import { UserRoleProvider } from './contexts/UserRoleContext';
 
 // Create a simple theme
 const theme = createTheme({
@@ -66,10 +68,11 @@ function App() {
   }, []);
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-  <Suspense fallback={<div style={{padding: 24}}>Loading…</div>}>
-  <Routes>
+    <UserRoleProvider>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+    <Suspense fallback={<div style={{padding: 24}}>Loading…</div>}>
+    <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
@@ -78,7 +81,7 @@ function App() {
         <Route 
           path="/admin/*" 
           element={
-            <PrivateRoute allowedRoles={['admin']}>
+            <PrivateRoute allowedRoles={['admin', 'superadmin']}>
               <AdminDashboard />
             </PrivateRoute>
           } 
@@ -86,7 +89,7 @@ function App() {
         <Route 
           path="/dean/*" 
           element={
-            <PrivateRoute allowedRoles={['dean', 'admin']}>
+            <PrivateRoute allowedRoles={['dean', 'admin', 'superadmin']}>
               <DeanDashboard />
             </PrivateRoute>
           } 
@@ -94,7 +97,7 @@ function App() {
         <Route 
           path="/hod/*" 
           element={
-            <PrivateRoute allowedRoles={['hod', 'admin']}>
+            <PrivateRoute allowedRoles={['hod', 'admin', 'superadmin']}>
               <HODDashboard />
             </PrivateRoute>
           } 
@@ -102,7 +105,7 @@ function App() {
         <Route 
           path="/teacher/*" 
           element={
-            <PrivateRoute allowedRoles={['teacher', 'admin']}>
+            <PrivateRoute allowedRoles={['teacher', 'cc', 'admin', 'superadmin']}>
               <TeacherDashboard />
             </PrivateRoute>
           } 
@@ -110,7 +113,7 @@ function App() {
         <Route 
           path="/cc/*" 
           element={
-            <PrivateRoute allowedRoles={['cc', 'admin']}>
+            <PrivateRoute allowedRoles={['cc', 'admin', 'superadmin']}>
               <CCDashboard />
             </PrivateRoute>
           } 
@@ -118,15 +121,18 @@ function App() {
         <Route 
           path="/student/*" 
           element={
-            <PrivateRoute allowedRoles={['student']}>
+            <PrivateRoute allowedRoles={['student', 'admin', 'superadmin']}>
               <StudentDashboard />
             </PrivateRoute>
           } 
         />
+        <Route path="/dashboard" element={<RoleBasedRedirect />} />
+        <Route path="/" element={<RoleBasedRedirect />} />
         <Route path="*" element={<Navigate to="/login" />} />
-  </Routes>
-  </Suspense>
-    </ThemeProvider>
+    </Routes>
+    </Suspense>
+      </ThemeProvider>
+    </UserRoleProvider>
   );
 }
 

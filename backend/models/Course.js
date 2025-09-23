@@ -24,8 +24,10 @@ const courseSchema = new mongoose.Schema({
   videos: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Video' }],
   units: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Unit' }],
   hasUnits: { type: Boolean, default: false },
-  // Course Coordinators (CC) assigned by HOD
-  coordinators: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true }],
+  // Course Coordinator (CC) assigned by HOD - Only ONE CC per course
+  coordinators: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true }], // Keep as array for compatibility but enforce single CC in logic
+  // Alternative single CC field (for future migration):
+  // coordinator: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
   
   // Course metadata
   credits: { type: Number, default: 3 },

@@ -779,12 +779,17 @@ exports.assignStudentToSection = async (req, res) => {
       });
     }
     
-    // Add student to section
+    // Add student to section AND update student's assignedSections
     section.students.push(studentId);
     await section.save();
-    
+
+    // Also update the student's assignedSections field for consistency
+    await User.findByIdAndUpdate(studentId, {
+      $addToSet: { assignedSections: sectionId }
+    });
+
     console.log(`Student ${studentId} successfully assigned to section ${sectionId}`);
-    
+
     // Return updated section with populated data
     const updatedSection = await Section.findById(sectionId)
       .populate('school', 'name code')
@@ -829,12 +834,17 @@ exports.removeStudentFromSection = async (req, res) => {
       return res.status(400).json({ message: 'Student is not in this section' });
     }
     
-    // Remove student from section
+    // Remove student from section AND update student's assignedSections
     section.students = section.students.filter(id => id.toString() !== studentId);
     await section.save();
-    
+
+    // Also remove the section from student's assignedSections field for consistency
+    await User.findByIdAndUpdate(studentId, {
+      $pull: { assignedSections: sectionId }
+    });
+
     console.log(`Student ${studentId} successfully removed from section ${sectionId}`);
-    
+
     // Return updated section with populated data
     const updatedSection = await Section.findById(sectionId)
       .populate('school', 'name code')

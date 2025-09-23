@@ -11,10 +11,12 @@ async function checkSectionCourses() {
     await mongoose.connect(process.env.MONGO_URI);
     console.log('✅ Connected to MongoDB');
     
-    const sectionId = '68cc16755ba20b247c9d5909'; // As001
-    
-    // Get section with courses
-    const section = await Section.findById(sectionId).populate('courses', 'title courseCode _id');
+    // Find section CS00000006
+    const section = await Section.findOne({ name: 'CS00000006' }).populate('courses', 'title courseCode _id');
+    if (!section) {
+      console.log('❌ Section CS00000006 not found');
+      return;
+    }
     console.log(`\n📚 Section: ${section.name}`);
     console.log('📖 Courses in section:');
     
@@ -24,7 +26,7 @@ async function checkSectionCourses() {
       
       // Check if course has a teacher assigned
       const assignment = await SectionCourseTeacher.findOne({
-        section: sectionId,
+        section: section._id,
         course: course._id,
         isActive: true
       }).populate('teacher', 'name email');

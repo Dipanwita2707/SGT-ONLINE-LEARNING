@@ -486,7 +486,10 @@ exports.getHierarchyOverview = async (req, res) => {
         
         department.teachers = await User.countDocuments({ 
           department: department._id, 
-          role: 'teacher',
+          $or: [
+            { role: 'teacher' },
+            { roles: { $in: ['teacher'] } }
+          ],
           isActive: true 
         });
       }
@@ -734,12 +737,23 @@ exports.getTeachersByDepartment = async (req, res) => {
   try {
     const { departmentId } = req.params;
     
-    // Include teachers, HODs, and deans who can take classes
+    // Include users who can teach: check both single role field and roles array for multi-role support
     const teachers = await User.find({
-      role: { $in: ['teacher', 'hod', 'dean'] },
-      department: departmentId,
-      isActive: true
-    }).select('name email teacherId role _id');
+      $and: [
+        {
+          $or: [
+            { role: { $in: ['teacher', 'hod', 'dean'] } },
+            { roles: { $in: ['teacher', 'hod', 'dean'] } }
+          ]
+        },
+        { department: departmentId },
+        { isActive: true }
+      ]
+    }).select('name email teacherId role roles primaryRole _id');
+    
+    console.log(`Found ${teachers.length} teachers for department ${departmentId}:`, 
+      teachers.map(t => ({ name: t.name, role: t.role, roles: t.roles }))
+    );
     
     res.json(teachers);
   } catch (error) {
@@ -770,12 +784,15 @@ exports.getTeachersByCourse = async (req, res) => {
 
     const instructors = [];
 
-    // 1. Get all teachers from the course's department
+    // 1. Get all teachers from the course's department (including multi-role users who can teach)
     const departmentTeachers = await User.find({
-      role: 'teacher',
+      $or: [
+        { role: 'teacher' },
+        { roles: { $in: ['teacher'] } }
+      ],
       department: course.department._id,
       isActive: true
-    }).select('name email teacherId role department _id');
+    }).select('name email teacherId role roles department _id');
 
     instructors.push(...departmentTeachers.map(teacher => ({
       ...teacher.toObject(),

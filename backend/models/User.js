@@ -12,7 +12,42 @@ const userSchema = new mongoose.Schema({
     set: v => v.toLowerCase() // Convert email to lowercase before saving
   },
   password: { type: String, required: true },
-  role: { type: String, enum: ['admin', 'teacher', 'student', 'dean', 'hod'], required: true },
+  // Multi-role system - each user can have multiple roles
+  roles: [{ 
+    type: String, 
+    enum: ['admin', 'teacher', 'student', 'dean', 'hod', 'cc', 'superadmin']
+  }],
+  primaryRole: { 
+    type: String, 
+    enum: ['admin', 'teacher', 'student', 'dean', 'hod', 'cc', 'superadmin']
+  },
+  
+  // Role-specific assignments - each role can have different school/department contexts
+  roleAssignments: [{
+    role: { 
+      type: String, 
+      enum: ['admin', 'teacher', 'student', 'dean', 'hod', 'cc', 'superadmin'],
+      required: true
+    },
+    school: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'School'
+    },
+    departments: [{ 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'Department'
+    }],
+    // For dean role: multiple schools they oversee
+    schools: [{ 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'School'
+    }],
+    isActive: { type: Boolean, default: true },
+    assignedAt: { type: Date, default: Date.now }
+  }],
+  
+  // Legacy field for backward compatibility (will be removed after migration)
+  role: { type: String, enum: ['admin', 'teacher', 'student', 'dean', 'hod', 'cc', 'superadmin'] },
   permissions: [{ type: String }], // e.g., ['manage_teachers', 'manage_students']
   
   // Hierarchy fields
@@ -20,20 +55,22 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'School',
     required: function() {
-      // School is required for all roles except admin
-      return this.role !== 'admin';
+      // School is required for all roles except admin and superadmin
+      return this.role !== 'admin' && this.role !== 'superadmin' && 
+             (!this.roles || (!this.roles.includes('admin') && !this.roles.includes('superadmin')));
     },
     index: true
   },
   department: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Department',
-    required: function() {
-      // Department is required for teachers and HODs
-      return this.role === 'teacher' || this.role === 'hod';
-    },
     index: true
   },
+  departments: [{ 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Department',
+    index: true
+  }],
   
   // Legacy field - courses are now assigned through sections
   coursesAssigned: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course', index: true }],
@@ -76,8 +113,26 @@ userSchema.pre('save', async function(next) {
     this.email = this.email.toLowerCase();
   }
   
+  // Set default values for multi-role system (backward compatibility)
+  if (this.isNew) {
+    // If roles array is empty but role field exists, populate roles from role
+    if ((!this.roles || this.roles.length === 0) && this.role) {
+      this.roles = [this.role];
+    }
+    
+    // If primaryRole is not set but role field exists, set it
+    if (!this.primaryRole && this.role) {
+      this.primaryRole = this.role;
+    }
+    
+    // If role field is not set but roles array exists, set role from primary
+    if (!this.role && this.roles && this.roles.length > 0) {
+      this.role = this.primaryRole || this.roles[0];
+    }
+  }
+  
   // Generate teacherId for new teacher accounts
-  if (this.isNew && this.role === 'teacher' && !this.teacherId) {
+  if (this.isNew && ((this.role === 'teacher') || (this.roles && this.roles.includes('teacher'))) && !this.teacherId) {
     try {
       // Find the highest existing teacherId
       const highestTeacher = await this.constructor.findOne(

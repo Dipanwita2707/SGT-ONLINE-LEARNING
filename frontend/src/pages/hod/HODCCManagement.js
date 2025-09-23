@@ -150,7 +150,7 @@ const HODCCManagement = () => {
         Course Coordinator Management
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Assign or remove Course Coordinators (CC) for courses in your department. Each teacher can be a CC for only one course at a time. Assigning will automatically remove them from other courses.
+        Assign or remove Course Coordinators (CC) for courses in your department. <strong>RULE: One course = One CC, One teacher = One course</strong>. Assigning will automatically replace existing coordinators.
       </Typography>
 
       {error && (
@@ -250,8 +250,10 @@ const HODCCManagement = () => {
                 How it works
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                • HODs can assign any teacher from their department as Course Coordinator for a course in their department.<br />
-                • A teacher can be CC for only one course at a time. Assigning them to a new course automatically removes them from previous courses.<br />
+                • <strong>One Course = One CC:</strong> Each course can have only ONE Course Coordinator.<br />
+                • <strong>One Teacher = One Course:</strong> Each teacher can be CC for only ONE course at a time.<br />
+                • Assigning a new CC to a course will automatically remove the previous CC from that course.<br />
+                • Assigning a teacher to a new course will automatically remove them from their previous CC assignment.<br />
                 • You can remove a coordinator using the chips shown for the selected course.
               </Typography>
 

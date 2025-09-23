@@ -26,9 +26,16 @@ import {
   Person as PersonIcon
 } from '@mui/icons-material';
 import * as sectionApi from '../../api/sectionApi';
+import { useUserRole } from '../../contexts/UserRoleContext';
+import { parseJwt } from '../../utils/jwt';
 
-const TeacherSections = ({ user, token }) => {
-  console.log('[TeacherSections] Component mounted with props - user:', user, 'token:', !!token);
+const TeacherSections = () => {
+  const token = localStorage.getItem('token');
+  const { user: contextUser } = useUserRole();
+  const currentUser = parseJwt(token);
+  const user = contextUser || currentUser;
+  
+  console.log('[TeacherSections] Component mounted - user:', user, 'token:', !!token);
   
   const [sections, setSections] = useState([]);
   const [selectedSection, setSelectedSection] = useState(null);
@@ -58,14 +65,14 @@ const TeacherSections = ({ user, token }) => {
   const fetchTeacherSections = async () => {
     try {
       setLoading(true);
-      // Guard: require user and token
+      // Guard: require user
       const userId = user._id || user.id;
-      if (!user || !userId || !token) {
+      if (!user || !userId) {
         throw new Error('Missing user session.');
       }
       console.log('[TeacherSections] Fetching sections for teacher:', userId);
       console.log('[TeacherSections] Token present:', !!token);
-      const data = await sectionApi.getTeacherStudentConnections(userId, token);
+      const data = await sectionApi.getTeacherStudentConnections(userId);
       console.log('[TeacherSections] Received sections data:', data);
       setSections(data);
       setError(''); // Clear any previous errors

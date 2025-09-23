@@ -7,7 +7,10 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import { parseJwt } from '../utils/jwt';
 import { logoutUser } from '../utils/authService';
+import { useUserRole } from '../contexts/UserRoleContext';
 import Sidebar from '../components/Sidebar';
+import RoleSwitcher from '../components/RoleSwitcher';
+import DashboardRoleGuard from '../components/DashboardRoleGuard';
 import AnnouncementManagementPage from './AnnouncementManagementPage';
 
 // Import Dean Dashboard components
@@ -25,10 +28,11 @@ const DeanDashboard = () => {
   const currentUser = parseJwt(token);
   const navigate = useNavigate();
   const location = useLocation();
-  const [userMenuAnchor, setUserMenuAnchor] = useState(null);
+
   const [notifAnchor, setNotifAnchor] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const { hasRole } = useUserRole();
 
   useEffect(() => {
     if (!token) return;
@@ -46,7 +50,14 @@ const DeanDashboard = () => {
   }, [token]);
 
   // Allow only dean users to access the dean dashboard
-  if (!currentUser || currentUser.role !== 'dean') {
+  const hasDeanRole = currentUser && (
+    currentUser.role === 'dean' || 
+    (currentUser.roles && currentUser.roles.includes('dean')) ||
+    currentUser.primaryRole === 'dean' ||
+    hasRole('dean')
+  );
+  
+  if (!hasDeanRole) {
     return <Navigate to="/login" />;
   }
 
@@ -55,19 +66,7 @@ const DeanDashboard = () => {
     return <Navigate to="/dean/dashboard" replace />;
   }
 
-  // User menu handlers
-  const handleUserMenuOpen = (event) => {
-    setUserMenuAnchor(event.currentTarget);
-  };
-  
-  const handleUserMenuClose = () => {
-    setUserMenuAnchor(null);
-  };
 
-  const handleLogout = () => {
-    logoutUser();
-    navigate('/login');
-  };
 
   const openNotifications = async (e) => {
     setNotifAnchor(e.currentTarget);
@@ -88,9 +87,10 @@ const DeanDashboard = () => {
   const closeNotifications = () => setNotifAnchor(null);
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <Sidebar currentUser={currentUser} />
-      <Box sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: '#f5f5f5' }}>
+    <DashboardRoleGuard requiredRole="dean">
+      <Box sx={{ display: 'flex' }}>
+        <Sidebar currentUser={currentUser} />
+        <Box sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: '#f5f5f5' }}>
         {/* Top Navigation Bar */}
         <Box sx={{ 
           bgcolor: 'white', 
@@ -116,23 +116,8 @@ const DeanDashboard = () => {
               </IconButton>
             </Tooltip>
 
-            {/* User Menu */}
-            <Tooltip title="Account settings">
-              <IconButton onClick={handleUserMenuOpen} color="inherit">
-                <AccountCircleIcon />
-              </IconButton>
-            </Tooltip>
-            
-            <Menu
-              anchorEl={userMenuAnchor}
-              open={Boolean(userMenuAnchor)}
-              onClose={handleUserMenuClose}
-            >
-              <MenuItem onClick={handleLogout}>
-                <LogoutIcon sx={{ mr: 1 }} />
-                Logout
-              </MenuItem>
-            </Menu>
+            {/* Role Switcher */}
+            <RoleSwitcher />
           </Box>
         </Box>
 
@@ -153,6 +138,7 @@ const DeanDashboard = () => {
         </Routes>
       </Box>
     </Box>
+    </DashboardRoleGuard>
   );
 };
 

@@ -4,7 +4,7 @@ const router = express.Router();
 const multer = require('multer');
 const upload = multer({ dest: 'uploads/' });
 
-const { auth, authorizeRoles } = require('../middleware/auth');
+const { auth, authorizeRoles, switchRole } = require('../middleware/auth');
 const adminController = require('../controllers/adminController');
 const videoController = require('../controllers/videoController');
 const analyticsController = require('../controllers/analyticsController');
@@ -46,6 +46,28 @@ router.get('/courses/department/:departmentId', adminController.getCoursesByDepa
 router.get('/students', adminController.getAllStudents);
 // Get all teachers
 router.get('/teachers', adminController.getAllTeachers);
+// Get all users
+router.get('/users', adminController.getAllUsers);
+// Get all schools
+router.get('/schools', async (req, res) => {
+  try {
+    const School = require('../models/School');
+    const schools = await School.find({}).sort({ name: 1 });
+    res.json(schools);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+// Get all departments  
+router.get('/departments', async (req, res) => {
+  try {
+    const Department = require('../models/Department');
+    const departments = await Department.find({}).populate('school', 'name code').sort({ name: 1 });
+    res.json(departments);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 // Get teachers by department (for HOD)
 router.get('/teachers/department', adminController.getTeachersByDepartment);
 // Super admin: Create announcement for teachers and/or students
@@ -335,6 +357,12 @@ router.post('/course/:courseId/unit/:unitId/grant-attempts', async (req, res) =>
 
 // Get user assignments (sections and courses)
 router.get('/user-assignments/:userId', adminController.getUserAssignments);
+
+// Multi-role management routes
+router.post('/users/multi-role', adminController.createMultiRoleUser);
+router.get('/users/:userId/roles', adminController.getUserRoles);
+router.post('/users/:userId/switch-role', adminController.switchUserRole);
+router.patch('/users/:userId/roles', adminController.updateUserRoles);
 
 module.exports = router;
 

@@ -29,6 +29,9 @@ router.post('/teachers/:teacherId/courses/:courseId', hodController.assignCourse
 router.delete('/teachers/:teacherId/courses/:courseId', hodController.removeCourseFromTeacher);
 router.patch('/teachers/:teacherId/section', hodController.changeTeacherSection);
 
+// Get available sections for teacher-course assignment (smart selection)
+router.get('/teachers/:teacherId/courses/:courseId/available-sections', hodController.getAvailableSectionsForTeacherCourse);
+
 // Request teacher assignment to section (requires dean approval)
 router.post('/assign/teacher', hodController.requestTeacherAssignment);
 
@@ -54,6 +57,9 @@ router.get('/analytics/students', hodController.getStudentAnalytics);
 
 // Get section-wise analytics for department
 router.get('/analytics/sections', hodController.getSectionAnalytics);
+
+// Get detailed analytics for a specific section
+router.get('/sections/:sectionId/analytics', hodController.getSpecificSectionAnalytics);
 
 // Get detailed analytics for a specific student
 router.get('/analytics/student/:studentId', hodController.getStudentDetailedAnalytics);

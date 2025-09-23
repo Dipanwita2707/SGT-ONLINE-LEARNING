@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Box, Typography, TextField, Button, Link, Alert, Paper } from '@mui/material';
 import { loginUser, isAuthenticated, getCurrentUser } from '../utils/authService';
+import { parseJwt } from '../utils/jwt';
 import videoBg from '../assets/SGTU_Video_Banner.mp4';
 import sgtLogo from '../assets/sgt-logo-white.png';
 
@@ -15,20 +16,28 @@ const LoginPage = () => {
   // Check if user is already logged in
   useEffect(() => {
     if (isAuthenticated()) {
-      const user = getCurrentUser();
+      const token = localStorage.getItem('token');
+      const user = parseJwt(token);
       if (user) {
-        // Redirect based on user role
-        if (user.role === 'admin') {
-          navigate('/admin');
-        } else if (user.role === 'dean') {
-          navigate('/dean');
-        } else if (user.role === 'hod') {
-          navigate('/hod');
-        } else if (user.role === 'teacher') {
-          navigate('/teacher');
-        } else if (user.role === 'student') {
-          navigate('/student');
+        // Get available roles
+        let availableRoles = [];
+        if (user.roles && Array.isArray(user.roles)) {
+          availableRoles = user.roles;
+        } else if (user.role) {
+          availableRoles = [user.role];
         }
+        
+        // Get active role from localStorage or default to primary
+        const savedActiveRole = localStorage.getItem('activeRole');
+        let activeRole = savedActiveRole;
+        
+        if (!activeRole || !availableRoles.includes(activeRole)) {
+          activeRole = user.primaryRole || availableRoles[0];
+          localStorage.setItem('activeRole', activeRole);
+        }
+        
+        // Redirect to role-based dashboard
+        navigate('/dashboard');
       }
     }
   }, [navigate]);
@@ -48,20 +57,24 @@ const LoginPage = () => {
       
       const user = result.user;
       
-      // Redirect based on user role
-      if (user.role === 'admin') {
-        navigate('/admin');
-      } else if (user.role === 'dean') {
-        navigate('/dean');
-      } else if (user.role === 'hod') {
-        navigate('/hod');
-      } else if (user.role === 'teacher') {
-        navigate('/teacher');
-      } else if (user.role === 'student') {
-        navigate('/student');
-      } else {
-        setError('Unknown user role');
+      console.log('🎯 Login successful, user data:', user);
+      
+      // Get available roles
+      let availableRoles = [];
+      if (user.roles && Array.isArray(user.roles)) {
+        availableRoles = user.roles;
+      } else if (user.role) {
+        availableRoles = [user.role];
       }
+      
+      // Set default active role
+      const defaultRole = user.primaryRole || availableRoles[0];
+      localStorage.setItem('activeRole', defaultRole);
+      
+      console.log('🔄 Setting active role:', defaultRole, 'Available roles:', availableRoles);
+      
+      // Redirect to dashboard (will be handled by RoleBasedRedirect)
+      navigate('/dashboard');
     } catch (err) {
       setError('Login failed. Please try again.');
       console.error('Login error:', err);

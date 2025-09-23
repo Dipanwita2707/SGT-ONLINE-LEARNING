@@ -29,7 +29,9 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
 import { parseJwt } from '../utils/jwt';
+import { useUserRole } from '../contexts/UserRoleContext';
 import { logoutUser } from '../utils/authService';
+import RoleSwitcher from '../components/RoleSwitcher';
 import Sidebar from '../components/Sidebar';
 import NotificationBell from '../components/admin/NotificationBell';
 import AnnouncementPage from './AnnouncementPage';
@@ -45,6 +47,8 @@ import DeanManagement from './admin/DeanManagement';
 import HODManagement from './admin/HODManagement';
 
 import RoleManagement from './admin/RoleManagement';
+import UserRoleManagement from './admin/UserRoleManagement';
+import UserRoleManagementTest from './admin/UserRoleManagementTest';
 import UnlockRequests from './admin/UnlockRequests';
 import AssignedSectionsCard from '../components/common/AssignedSectionsCard';
 
@@ -52,7 +56,11 @@ import AssignedSectionsCard from '../components/common/AssignedSectionsCard';
 const AdminDashboard = () => {
   const token = localStorage.getItem('token');
   const currentUser = parseJwt(token);
+  const { user: contextUser, hasRole, activeRole } = useUserRole();
   const navigate = useNavigate();
+  
+  // Use context user if available, fallback to parsed JWT
+  const user = contextUser || currentUser;
   
   // Notifications section state
   const [notifications, setNotifications] = useState([]);
@@ -63,7 +71,7 @@ const AdminDashboard = () => {
   const [activityLoading, setActivityLoading] = useState(true);
   
   // User menu state
-  const [userMenuAnchor, setUserMenuAnchor] = useState(null);
+
   
   // Check if we're on a sub-page
   const isOnMainDashboard = window.location.pathname === '/admin' || window.location.pathname === '/admin/';
@@ -119,23 +127,7 @@ const AdminDashboard = () => {
     return null;
   };
   
-  // User menu handlers
-  const handleUserMenuOpen = (event) => {
-    setUserMenuAnchor(event.currentTarget);
-  };
-  
-  const handleUserMenuClose = () => {
-    setUserMenuAnchor(null);
-  };
-  
-  // Logout handler
-  const handleLogout = async () => {
-    handleUserMenuClose();
-    const result = await logoutUser();
-    if (result.success) {
-      navigate('/login');
-    }
-  };
+
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f5f7fa' }}>
@@ -143,38 +135,8 @@ const AdminDashboard = () => {
       <Box sx={{ position: 'absolute', top: 16, right: 80, zIndex: 1201 }}>
         <NotificationBell token={token} />
       </Box>
-      <Box sx={{ position: 'absolute', top: 16, right: 24, zIndex: 1201 }}>
-        <Tooltip title="Account">
-          <IconButton 
-            onClick={handleUserMenuOpen}
-            size="medium"
-            sx={{ 
-              bgcolor: 'primary.main', 
-              color: 'white',
-              '&:hover': { bgcolor: 'primary.dark' } 
-            }}
-          >
-            <AccountCircleIcon />
-          </IconButton>
-        </Tooltip>
-        <Menu
-          anchorEl={userMenuAnchor}
-          open={Boolean(userMenuAnchor)}
-          onClose={handleUserMenuClose}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'right',
-          }}
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'right',
-          }}
-        >
-          <MenuItem onClick={handleLogout}>
-            <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
-            Logout
-          </MenuItem>
-        </Menu>
+      <Box sx={{ position: 'absolute', top: 16, right: 16, zIndex: 1201 }}>
+        <RoleSwitcher />
       </Box>
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         {isOnMainDashboard && (
@@ -301,6 +263,7 @@ const AdminDashboard = () => {
             <Route path="hods" element={<HODManagement />} />
             <Route path="enhanced-analytics" element={<EnhancedAnalytics />} />
             <Route path="announcements" element={<AnnouncementPage role="admin" />} />
+            {currentUser?.role === 'admin' && <Route path="user-roles" element={<UserRoleManagement />} />}
             {currentUser?.role === 'admin' && <Route path="roles" element={<RoleManagement />} />}
             <Route path="*" element={<Navigate to="/admin/dashboard" />} />
           </Routes>

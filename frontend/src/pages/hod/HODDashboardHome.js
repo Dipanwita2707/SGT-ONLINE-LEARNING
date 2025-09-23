@@ -15,7 +15,11 @@ import {
   Autocomplete,
   TextField,
   Snackbar,
-  Alert as MuiAlert
+  Alert as MuiAlert,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import {
   Group as GroupIcon,
@@ -25,12 +29,14 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { parseJwt } from '../../utils/jwt';
+import { useUserRole } from '../../contexts/UserRoleContext';
 import { useNavigate } from 'react-router-dom';
 
 const HODDashboardHome = () => {
+  const { activeRole, getRoleInfo } = useUserRole();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
-    department: null,
+    departments: [],
     school: null,
     teachers: 0,
     courses: 0,
@@ -38,6 +44,7 @@ const HODDashboardHome = () => {
     sections: 0,
     pendingApprovals: 0
   });
+  const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [courseCoordinators, setCourseCoordinators] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -94,13 +101,24 @@ const HODDashboardHome = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      // Get HOD dashboard data from correct endpoint
+      
+      console.log('� Making HOD dashboard API call directly...');
+      
+      // Fetch HOD dashboard data directly
       const dashboardRes = await axios.get('/api/hod/dashboard', {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
+      console.log('✅ HOD Dashboard API Response:', dashboardRes.data);
+      console.log('📊 Statistics received:', dashboardRes.data.statistics);
+      
+      // Extract department information from the response
+      const department = dashboardRes.data.department;
+      const userDepartments = department ? [department] : [];
+      
       setStats({
-        department: dashboardRes.data.department,
-        school: dashboardRes.data.department?.school,
+        departments: userDepartments,
+        school: department?.school,
         teachers: dashboardRes.data.statistics.teachers,
         courses: dashboardRes.data.statistics.courses,
         students: dashboardRes.data.statistics.students,
@@ -109,7 +127,12 @@ const HODDashboardHome = () => {
       });
       setCourseCoordinators(dashboardRes.data.courseCoordinators || []);
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.error('❌ Error fetching dashboard data:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
     } finally {
       setLoading(false);
     }
@@ -163,25 +186,70 @@ const HODDashboardHome = () => {
       {/* Welcome Section */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
-          Welcome back, HOD {currentUser.firstName} {currentUser.lastName}
+          Welcome back, {getRoleInfo(activeRole || 'hod').name} {currentUser.name}
         </Typography>
-        {stats.department && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            <Typography variant="h6" color="textSecondary">
-              {stats.department.name}
+        
+        {/* Multiple Departments Display */}
+        {stats.departments && stats.departments.length > 0 && (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="h6" color="textSecondary" sx={{ mb: 1 }}>
+              Managing Department{stats.departments.length > 1 ? 's' : ''}:
             </Typography>
-            <Chip 
-              label={stats.department.code} 
-              size="small" 
-              color="primary" 
-              variant="outlined" 
-            />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              {stats.departments.map((dept, index) => (
+                <Box key={dept._id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body1" color="primary" sx={{ fontWeight: 500 }}>
+                    {dept.name}
+                  </Typography>
+                  <Chip 
+                    label={dept.code} 
+                    size="small" 
+                    color="primary" 
+                    variant="outlined" 
+                  />
+                  {index < stats.departments.length - 1 && (
+                    <Typography variant="body2" color="textSecondary">•</Typography>
+                  )}
+                </Box>
+              ))}
+            </Box>
             {stats.school && (
-              <Typography variant="body2" color="textSecondary">
-                • {stats.school.name}
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                School: {stats.school.name}
               </Typography>
             )}
           </Box>
+        )}
+
+        {/* Department Selector for Multi-Department HODs */}
+        {stats.departments && stats.departments.length > 1 && (
+          <Card sx={{ mb: 3, bgcolor: '#f8f9fa' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="h6">Department View</Typography>
+                <FormControl size="small" sx={{ minWidth: 200 }}>
+                  <InputLabel>Select Department</InputLabel>
+                  <Select
+                    value={selectedDepartment}
+                    onChange={(e) => setSelectedDepartment(e.target.value)}
+                    label="Select Department"
+                  >
+                    <MenuItem value="all">All Departments</MenuItem>
+                    {stats.departments.map((dept) => (
+                      <MenuItem key={dept._id} value={dept._id}>
+                        {dept.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                {selectedDepartment === 'all' 
+                  ? 'Showing aggregated data from all your departments' 
+                  : `Showing data for ${stats.departments.find(d => d._id === selectedDepartment)?.name}`}
+              </Typography>
+            </CardContent>
+          </Card>
         )}
       </Box>
 
@@ -265,28 +333,60 @@ const HODDashboardHome = () => {
               <Typography variant="h6" sx={{ mb: 2 }}>
                 Department Information
               </Typography>
-              {stats.department ? (
+              {stats.departments && stats.departments.length > 0 ? (
                 <Box>
-                  <Typography variant="body1" sx={{ mb: 1 }}>
-                    <strong>Department:</strong> {stats.department.name}
-                  </Typography>
-                  <Typography variant="body1" sx={{ mb: 1 }}>
-                    <strong>Code:</strong> {stats.department.code}
-                  </Typography>
-                  {stats.school && (
-                    <Typography variant="body1" sx={{ mb: 1 }}>
-                      <strong>School:</strong> {stats.school.name}
-                    </Typography>
-                  )}
-                  {stats.department.description && (
-                    <Typography variant="body2" color="textSecondary">
-                      {stats.department.description}
-                    </Typography>
+                  {stats.departments.length === 1 ? (
+                    // Single department view
+                    <Box>
+                      <Typography variant="body1" sx={{ mb: 1 }}>
+                        <strong>Department:</strong> {stats.departments[0].name}
+                      </Typography>
+                      <Typography variant="body1" sx={{ mb: 1 }}>
+                        <strong>Code:</strong> {stats.departments[0].code}
+                      </Typography>
+                      {stats.school && (
+                        <Typography variant="body1" sx={{ mb: 1 }}>
+                          <strong>School:</strong> {stats.school.name}
+                        </Typography>
+                      )}
+                      {stats.departments[0].description && (
+                        <Typography variant="body2" color="textSecondary">
+                          {stats.departments[0].description}
+                        </Typography>
+                      )}
+                    </Box>
+                  ) : (
+                    // Multiple departments view
+                    <Box>
+                      <Typography variant="body1" sx={{ mb: 1 }}>
+                        <strong>Departments:</strong> {stats.departments.length} departments
+                      </Typography>
+                      <Box sx={{ mb: 2 }}>
+                        {stats.departments.map((dept, index) => (
+                          <Box key={dept._id} sx={{ mb: 1 }}>
+                            <Typography variant="body2">
+                              {index + 1}. {dept.name} ({dept.code})
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                      {stats.school && (
+                        <Typography variant="body1" sx={{ mb: 1 }}>
+                          <strong>School:</strong> {stats.school.name}
+                        </Typography>
+                      )}
+                      <Chip 
+                        label={`Multi-Department HOD`} 
+                        color="secondary" 
+                        size="small" 
+                        sx={{ mt: 1 }}
+                      />
+                    </Box>
                   )}
                 </Box>
               ) : (
                 <Typography color="textSecondary">
-                  No department assigned to your account.
+                  No departments assigned to your account.
                 </Typography>
               )}
             </CardContent>
@@ -361,6 +461,9 @@ const HODDashboardHome = () => {
         <DialogContent>
           <Typography variant="body2" sx={{ mb: 2 }}>
             {selectedCourse ? `Course: ${selectedCourse.title} (${selectedCourse.courseCode})` : ''}
+          </Typography>
+          <Typography variant="body2" color="warning.main" sx={{ mb: 2 }}>
+            ⚠️ Assigning a new CC will replace any existing coordinator for this course.
           </Typography>
           <Autocomplete
             options={teachers}

@@ -5,6 +5,42 @@ const Unit = require('../models/Unit');
 const QuestionReview = require('../models/QuestionReview');
 const AuditLog = require('../models/AuditLog');
 
+// Check if user is currently a Course Coordinator
+exports.getCCStatus = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    // Admin and HOD always have CC access
+    if (req.user.role === 'admin' || req.user.role === 'hod') {
+      return res.json({ 
+        isCC: true, 
+        role: req.user.role,
+        message: `${req.user.role.toUpperCase()} has full CC access`
+      });
+    }
+
+    // Check if user is assigned as CC to any active course
+    const coordinatedCourses = await Course.find({ 
+      coordinators: { $in: [userId] },
+      isActive: { $ne: false }
+    }).select('_id title courseCode department').populate('department', 'name');
+
+    const isCC = coordinatedCourses.length > 0;
+
+    res.json({ 
+      isCC,
+      coordinatedCourses,
+      coursesCount: coordinatedCourses.length,
+      message: isCC 
+        ? `User is CC for ${coordinatedCourses.length} course(s)`
+        : 'User is not assigned as CC to any course'
+    });
+  } catch (error) {
+    console.error('Error checking CC status:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 // List courses where current user is a coordinator (for 'Course Management' section)
 exports.getAssignedCourses = async (req, res) => {
   try {

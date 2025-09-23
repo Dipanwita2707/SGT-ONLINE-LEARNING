@@ -303,15 +303,50 @@ exports.cancelUnlockRequest = async (req, res) => {
 exports.getPendingRequestsForHOD = async (req, res) => {
   try {
     const hodId = req.user._id;
-    const { priority, courseId, teacherId, limit = 50, page = 1 } = req.query;
+    const { priority, courseId, teacherId, departmentId, limit = 50, page = 1 } = req.query;
 
-    console.log('📋 Getting pending requests for HOD:', { hodId, priority, courseId });
+    console.log('📋 Getting pending requests for HOD:', { hodId, priority, courseId, departmentId });
+
+    // Get HOD's departments
+    const User = require('../models/User');
+    const hodUser = await User.findById(hodId).populate('departments department');
+    
+    if (!hodUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'HOD user not found'
+      });
+    }
+
+    // Get all departments the HOD manages
+    let hodDepartments = [];
+    if (hodUser.departments && Array.isArray(hodUser.departments)) {
+      hodDepartments = hodUser.departments.map(dept => dept._id);
+    } else if (hodUser.department) {
+      hodDepartments = [hodUser.department._id];
+    }
+
+    console.log('🏢 HOD manages departments:', hodDepartments);
 
     // Build filter
     const filters = {};
     if (priority) filters.priority = priority;
     if (courseId) filters.course = courseId;
     if (teacherId) filters.teacher = teacherId;
+    
+    // Filter by department if specified, otherwise include all HOD's departments
+    if (departmentId && departmentId !== 'all') {
+      if (hodDepartments.includes(departmentId)) {
+        filters.department = departmentId;
+      } else {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have access to this department'
+        });
+      }
+    } else {
+      filters.department = { $in: hodDepartments };
+    }
 
     const requests = await VideoUnlockRequest.getPendingRequestsForHOD(hodId, filters);
 
@@ -320,7 +355,7 @@ exports.getPendingRequestsForHOD = async (req, res) => {
     const endIndex = startIndex + parseInt(limit);
     const paginatedRequests = requests.slice(startIndex, endIndex);
 
-    console.log(`✅ Found ${requests.length} pending requests`);
+    console.log(`✅ Found ${requests.length} pending requests for HOD's departments`);
 
     res.json({
       success: true,
@@ -330,7 +365,8 @@ exports.getPendingRequestsForHOD = async (req, res) => {
         total: Math.ceil(requests.length / limit),
         count: paginatedRequests.length,
         totalRequests: requests.length
-      }
+      },
+      hodDepartments: hodUser.departments || (hodUser.department ? [hodUser.department] : [])
     });
 
   } catch (error) {
