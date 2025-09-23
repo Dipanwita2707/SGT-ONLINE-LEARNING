@@ -6,3 +6,4 @@ Fixes =>
         3. minor ui fixes
         4. course chat forum working ( just need refresh ).
         5. admin video delete from any course.
+        6. login with uid
