@@ -10,14 +10,20 @@ import {
   Alert,
   Autocomplete,
   Typography,
-  Box
+  Box,
+  FormControl,
+  FormLabel,
+  RadioGroup,
+  FormControlLabel,
+  Radio
 } from '@mui/material';
 import { getCourses } from '../../api/courseApi';
 import { getUnitsByCourse } from '../../api/unitApi';
 
 const VideoUploadDialog = ({ open, onClose, onUpload }) => {
-  const [form, setForm] = useState({ title: '', description: '', courseId: '', unitId: '' });
+  const [form, setForm] = useState({ title: '', description: '', courseId: '', unitId: '', videoLink: '' });
   const [file, setFile] = useState(null);
+  const [videoType, setVideoType] = useState('upload'); // 'upload' or 'link'
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
   const [courses, setCourses] = useState([]);
@@ -114,7 +120,17 @@ const VideoUploadDialog = ({ open, onClose, onUpload }) => {
 
   const handleUpload = async () => {
     setError('');
-    if (!file || !form.title || !form.courseId) return setError('Title, course, and file are required');
+    
+    // Validate based on video type
+    if (videoType === 'link') {
+      if (!form.videoLink || !form.title || !form.courseId) {
+        return setError('Title, course, and video link are required');
+      }
+    } else {
+      if (!file || !form.title || !form.courseId) {
+        return setError('Title, course, and file are required');
+      }
+    }
     
     // Check if units are available but none selected
     if (units.length > 0 && !form.unitId) {
@@ -122,12 +138,13 @@ const VideoUploadDialog = ({ open, onClose, onUpload }) => {
     }
     
     try {
-      await onUpload({ ...form, file }, setProgress);
-      setForm({ title: '', description: '', courseId: '', unitId: '' });
+      await onUpload({ ...form, file, videoType }, setProgress);
+      setForm({ title: '', description: '', courseId: '', unitId: '', videoLink: '' });
       setSelectedCourse(null);
       setSelectedUnit(null);
       setUnits([]);
       setFile(null);
+      setVideoType('upload');
       setProgress(0);
       onClose();
     } catch (err) {
@@ -159,6 +176,32 @@ const VideoUploadDialog = ({ open, onClose, onUpload }) => {
           multiline 
           rows={3}
         />
+        
+        <FormControl component="fieldset" margin="normal">
+          <FormLabel component="legend">Video Type</FormLabel>
+          <RadioGroup
+            row
+            value={videoType}
+            onChange={(e) => setVideoType(e.target.value)}
+          >
+            <FormControlLabel value="upload" control={<Radio />} label="Upload File" />
+            <FormControlLabel value="link" control={<Radio />} label="Video Link" />
+          </RadioGroup>
+        </FormControl>
+        
+        {videoType === 'link' && (
+          <TextField 
+            label="Video Link (YouTube, Vimeo, etc.)" 
+            name="videoLink" 
+            value={form.videoLink} 
+            onChange={handleChange} 
+            fullWidth 
+            margin="normal" 
+            required 
+            placeholder="https://www.youtube.com/watch?v=..."
+            helperText="Enter a video link from YouTube, Vimeo, or other video platforms"
+          />
+        )}
         
         <Autocomplete
           options={courses}
@@ -232,16 +275,18 @@ const VideoUploadDialog = ({ open, onClose, onUpload }) => {
           />
         )}
         
-        <Box sx={{ mt: 3, mb: 1 }}>
-          <input 
-            type="file" 
-            accept="video/*" 
-            onChange={handleFileChange} 
-            style={{ width: '100%' }} 
-          />
-        </Box>
+        {videoType === 'upload' && (
+          <Box sx={{ mt: 3, mb: 1 }}>
+            <input 
+              type="file" 
+              accept="video/*" 
+              onChange={handleFileChange} 
+              style={{ width: '100%' }} 
+            />
+          </Box>
+        )}
         
-        {file && (
+        {file && videoType === 'upload' && (
           <Box sx={{ mt: 1, p: 1, bgcolor: 'background.paper', borderRadius: 1 }}>
             <Typography variant="body2">
               Selected: <strong>{file.name}</strong> ({(file.size / (1024 * 1024)).toFixed(2)} MB)

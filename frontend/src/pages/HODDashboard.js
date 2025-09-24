@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { Box, Toolbar, IconButton, Menu, MenuItem, Tooltip, Badge, Typography } from '@mui/material';
+import { Box, IconButton, Menu, MenuItem, Tooltip, Badge, Typography } from '@mui/material';
 import axios from 'axios';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
@@ -25,6 +25,7 @@ import HODAnnouncementApproval from '../components/hod/HODAnnouncementApproval';
 import HODQuizManagement from './hod/HODQuizManagement';
 import HODCCManagement from './hod/HODCCManagement';
 import HODVideoUnlockApproval from './hod/HODVideoUnlockApproval';
+import TopHeaderBar from '../components/common/TopHeaderBar';
 
 const HODDashboard = () => {
   const token = localStorage.getItem('token');
@@ -92,41 +93,27 @@ const HODDashboard = () => {
     <DashboardRoleGuard requiredRole="hod">
       <Box sx={{ display: 'flex' }}>
         <Sidebar currentUser={currentUser} />
-        <Box sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: '#f5f5f5' }}>
-        {/* Top Navigation Bar */}
-        <Box sx={{ 
-          bgcolor: 'white', 
-          borderBottom: '1px solid #e0e0e0',
-          px: 3,
-          py: 1,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-        }}>
-          <Typography variant="h5" sx={{ color: '#333', fontWeight: 600 }}>
-            HOD Dashboard
-          </Typography>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {/* Notifications */}
-            <Tooltip title="Notifications">
-              <IconButton onClick={openNotifications} color="inherit">
-                <Badge badgeContent={unreadCount} color="error">
-                  <NotificationsIcon />
-                </Badge>
-              </IconButton>
-            </Tooltip>
+  <Box sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: '#f4f6f8', ml: '280px', display: 'flex', flexDirection: 'column' }}>
+  <TopHeaderBar 
+          title="Analytics Dashboard" 
+          subtitle="Toggle metrics visibility to customize your dashboard view"
+          right={
+            <>
+              <Tooltip title="Notifications">
+                <IconButton onClick={openNotifications} color="inherit">
+                  <Badge badgeContent={unreadCount} color="error">
+                    <NotificationsIcon />
+                  </Badge>
+                </IconButton>
+              </Tooltip>
+              <RoleSwitcher />
+            </>
+          }
+        />
 
-            {/* Role Switcher */}
-            <RoleSwitcher />
-          </Box>
-        </Box>
-
-        <Toolbar />
-        
-        {/* Main Content */}
-        <Routes>
+  {/* Main Content */}
+  <Box component="main" sx={{ flexGrow: 1, pt: 3, pr: 3, pb: 3, pl: 0 }}>
+  <Routes>
           <Route path="/dashboard" element={<HODDashboardHome />} />
           <Route path="/teachers" element={<HODTeachers />} />
           <Route path="/courses" element={<HODCourses />} />
@@ -140,6 +127,7 @@ const HODDashboard = () => {
           <Route path="/video-unlock-requests" element={<HODVideoUnlockApproval token={token} user={currentUser} />} />
           <Route path="*" element={<Navigate to="/hod/dashboard" replace />} />
         </Routes>
+        </Box>
       </Box>
     </Box>
     </DashboardRoleGuard>

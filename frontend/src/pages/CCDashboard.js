@@ -1,8 +1,10 @@
 import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Box, Toolbar, Typography } from '@mui/material';
+import { Box, Tooltip, IconButton, Badge } from '@mui/material';
 import Sidebar from '../components/Sidebar';
 import { parseJwt } from '../utils/jwt';
+import TopHeaderBar from '../components/common/TopHeaderBar';
+import NotificationsIcon from '@mui/icons-material/Notifications';
 
 const CCDashboardHome = React.lazy(() => import('./cc/CCDashboardHome'));
 const CCReviews = React.lazy(() => import('./cc/CCReviews'));
@@ -27,17 +29,30 @@ const CCDashboard = () => {
   return (
     <Box sx={{ display: 'flex' }}>
       <Sidebar currentUser={currentUser} />
-      <Box sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: '#f5f5f5' }}>
-        <Box sx={{ bgcolor: 'white', borderBottom: '1px solid #e0e0e0', px: 3, py: 1 }}>
-          <Typography variant="h5">Course Coordinator</Typography>
-        </Box>
-        <Toolbar />
+  <Box sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: '#f4f6f8', ml: '280px', display: 'flex', flexDirection: 'column' }}>
+        <TopHeaderBar 
+          title="Analytics Dashboard"
+          subtitle="Toggle metrics visibility to customize your dashboard view"
+          right={
+            <Tooltip title="Notifications">
+              <span>
+                <IconButton color="inherit">
+                  <Badge badgeContent={0} color="error">
+                    <NotificationsIcon />
+                  </Badge>
+                </IconButton>
+              </span>
+            </Tooltip>
+          }
+        />
         <React.Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}> 
+          <Box component="main" sx={{ flexGrow: 1, pt: 3, pr: 3, pb: 3, pl: 0 }}>
           <Routes>
             <Route path="/dashboard" element={<CCDashboardHome />} />
             <Route path="/reviews" element={<CCReviews />} />
             <Route path="*" element={<Navigate to="/cc/dashboard" replace />} />
           </Routes>
+          </Box>
         </React.Suspense>
       </Box>
     </Box>

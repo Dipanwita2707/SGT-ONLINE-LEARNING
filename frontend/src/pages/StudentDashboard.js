@@ -20,6 +20,7 @@ import StudentSection from '../components/student/StudentSection';
 import StudentLiveClassDashboard from '../components/student/StudentLiveClassDashboard';
 import StudentLiveClassRoom from '../components/student/StudentLiveClassRoom';
 import QuizResults from '../components/student/QuizResults';
+import TopHeaderBar from '../components/common/TopHeaderBar';
 
 const StudentDashboard = () => {
   const token = localStorage.getItem('token');
@@ -105,50 +106,48 @@ const StudentDashboard = () => {
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
       <Sidebar currentUser={currentUser} />
-      <Box sx={{ position: 'absolute', top: 16, right: 24, zIndex: 1201, display: 'flex', gap: 1 }}>
-        <style>{`@keyframes bellPulse {0%{transform:scale(1);}50%{transform:scale(1.25);}100%{transform:scale(1);} } @keyframes annGlow {0%{box-shadow:0 0 0 0 rgba(255,0,0,0.65);}70%{box-shadow:0 0 0 16px rgba(255,0,0,0);}100%{box-shadow:0 0 0 0 rgba(255,0,0,0);} }`}</style>
-        <Tooltip title="Notifications">
-          <IconButton
-            onClick={openNotifications}
-            size="medium"
-            sx={{
-              ...(blink ? { animation: 'bellPulse 1s ease-in-out infinite' } : {}),
-              ...(annBlink ? { animation: `${blink ? 'bellPulse 1s ease-in-out infinite,' : ''} annGlow 1.6s infinite` } : {}),
-              bgcolor: annBlink ? 'error.light' : 'warning.main',
-              color: 'white',
-              '&:hover': { bgcolor: annBlink ? 'error.main' : 'warning.dark' }
-            }}
-          >
-            <Badge color="error" badgeContent={unreadCount > 99 ? '99+' : unreadCount} invisible={unreadCount === 0}>
-              <NotificationsIcon />
-            </Badge>
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Account">
-          <IconButton 
-            onClick={handleUserMenuOpen}
-            size="medium"
-            sx={{ 
-              bgcolor: 'info.main', 
-              color: 'white',
-              '&:hover': { bgcolor: 'info.dark' } 
-            }}
-          >
-            <AccountCircleIcon />
-          </IconButton>
-        </Tooltip>
+  <Box sx={{ ml: 0, display: 'flex', flexDirection: 'column', flexGrow: 1, bgcolor: '#f4f6f8', minHeight: '100vh' }}>
+        <TopHeaderBar
+          title="Student Dashboard"
+          subtitle="Access your courses, section, and track your academic progress"
+          right={
+            <>
+              <style>{`@keyframes bellPulse {0%{transform:scale(1);}50%{transform:scale(1.25);}100%{transform:scale(1);} } @keyframes annGlow {0%{box-shadow:0 0 0 0 rgba(255,0,0,0.65);}70%{box-shadow:0 0 0 16px rgba(255,0,0,0);}100%{box-shadow:0 0 0 0 rgba(255,0,0,0);} }`}</style>
+              <Tooltip title="Notifications">
+                <IconButton
+                  onClick={openNotifications}
+                  size="medium"
+                  sx={{
+                    ...(blink ? { animation: 'bellPulse 1s ease-in-out infinite' } : {}),
+                    ...(annBlink ? { animation: `${blink ? 'bellPulse 1s ease-in-out infinite,' : ''} annGlow 1.6s infinite` } : {}),
+                    bgcolor: annBlink ? 'error.light' : 'warning.main',
+                    color: 'white',
+                    '&:hover': { bgcolor: annBlink ? 'error.main' : 'warning.dark' }
+                  }}
+                >
+                  <Badge color="error" badgeContent={unreadCount > 99 ? '99+' : unreadCount} invisible={unreadCount === 0}>
+                    <NotificationsIcon />
+                  </Badge>
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Account">
+                <IconButton 
+                  onClick={handleUserMenuOpen}
+                  size="medium"
+                  sx={{ bgcolor: 'info.main', color: 'white', '&:hover': { bgcolor: 'info.dark' } }}
+                >
+                  <AccountCircleIcon />
+                </IconButton>
+              </Tooltip>
+            </>
+          }
+        />
         <Menu
           anchorEl={userMenuAnchor}
           open={Boolean(userMenuAnchor)}
           onClose={handleUserMenuClose}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'right',
-          }}
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'right',
-          }}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         >
           <MenuItem onClick={handleLogout}>
             <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
@@ -162,17 +161,17 @@ const StudentDashboard = () => {
           PaperProps={{ sx: { maxHeight: 400, width: 320 } }}
         >
           {notifications.length === 0 && <MenuItem disabled>No notifications</MenuItem>}
-            {notifications.slice(0, 50).map(n => (
-              <MenuItem key={n._id} onClick={closeNotifications} sx={!n.read ? { fontWeight: 600 } : {}}>
-                <Box>
-                  <Typography variant="body2">{n.message}</Typography>
-                  <Typography variant="caption" color="text.secondary">{n.createdAt ? new Date(n.createdAt).toLocaleString() : ''}</Typography>
-                </Box>
-              </MenuItem>
-            ))}
+          {notifications.slice(0, 50).map(n => (
+            <MenuItem key={n._id} onClick={closeNotifications} sx={!n.read ? { fontWeight: 600 } : {}}>
+              <Box>
+                <Typography variant="body2">{n.message}</Typography>
+                <Typography variant="caption" color="text.secondary">{n.createdAt ? new Date(n.createdAt).toLocaleString() : ''}</Typography>
+              </Box>
+            </MenuItem>
+          ))}
         </Menu>
-      </Box>
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+        {/* Main content */}
+  <Box component="main" sx={{ flexGrow: 1, pt: 3, pr: 3, pb: 3, pl: 3 }}>
         <Routes>
           <Route path="/" element={<StudentHomeDashboard />} />
           <Route path="/dashboard" element={<StudentHomeDashboard />} />
@@ -188,6 +187,7 @@ const StudentDashboard = () => {
           <Route path="/announcements" element={<AnnouncementPage role="student" />} />
           <Route path="*" element={<Navigate to="/student/dashboard" replace />} />
         </Routes>
+        </Box>
       </Box>
     </Box>
   );

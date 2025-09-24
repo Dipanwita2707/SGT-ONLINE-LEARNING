@@ -71,8 +71,14 @@ router.get('/unit/:unitId', require('../controllers/unitController').getUnitById
 router.put('/unit/:unitId', require('../controllers/unitController').updateUnit);
 router.delete('/unit/:unitId', require('../controllers/unitController').deleteUnit);
 
-// Upload a video for a course
-router.post('/course/:courseId/video', upload.single('video'), teacherController.uploadCourseVideo);
+// Upload a video for a course (supports both file upload and video links)
+router.post('/course/:courseId/video', (req, res, next) => {
+  // Only use multer for file uploads, not for video links
+  if (req.body.videoType === 'link' || req.headers['content-type'] === 'application/json') {
+    return next();
+  }
+  return upload.single('video')(req, res, next);
+}, teacherController.uploadCourseVideo);
 
 // Teacher: Create announcement for specific sections (requires HOD approval)
 router.post('/announcement', teacherController.createSectionAnnouncement);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { Box, Toolbar, IconButton, Menu, MenuItem, Tooltip, Badge, Typography } from '@mui/material';
+import { Box, IconButton, Menu, MenuItem, Tooltip, Badge, Typography } from '@mui/material';
 import axios from 'axios';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
@@ -32,6 +32,7 @@ import QuizUnlockDashboard from '../components/teacher/QuizUnlockDashboard';
 import VideoUnlockDashboard from '../components/teacher/VideoUnlockDashboard';
 import UnauthorizedPage from './UnauthorizedPage';
 import TeacherLiveClassDashboard from '../components/teacher/TeacherLiveClassDashboard';
+import TopHeaderBar from '../components/common/TopHeaderBar';
 
 const TeacherDashboard = () => {
   const token = localStorage.getItem('token');
@@ -127,45 +128,53 @@ const TeacherDashboard = () => {
     <DashboardRoleGuard requiredRole="teacher">
       <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
       <Sidebar currentUser={user} />
-      <Box sx={{ position: 'absolute', top: 16, right: 24, zIndex: 1201, display: 'flex', gap: 1 }}>
-        <style>{`@keyframes bellPulse {0%{transform:scale(1);}50%{transform:scale(1.25);}100%{transform:scale(1);} } @keyframes annGlow {0%{box-shadow:0 0 0 0 rgba(255,0,0,0.65);}70%{box-shadow:0 0 0 16px rgba(255,0,0,0);}100%{box-shadow:0 0 0 0 rgba(255,0,0,0);} }`}</style>
-        <Tooltip title="Notifications">
-          <IconButton
-            onClick={openNotifications}
-            size="medium"
-            sx={{
-              ...(blink ? { animation: 'bellPulse 1s ease-in-out infinite' } : {}),
-              ...(annBlink ? { animation: `${blink ? 'bellPulse 1s ease-in-out infinite,' : ''} annGlow 1.6s infinite` } : {}),
-              bgcolor: annBlink ? 'error.light' : 'warning.main',
-              color: 'white',
-              '&:hover': { bgcolor: annBlink ? 'error.main' : 'warning.dark' }
-            }}
-          >
-            <Badge color="error" badgeContent={unreadCount > 99 ? '99+' : unreadCount} invisible={unreadCount === 0}>
-              <NotificationsIcon />
-            </Badge>
-          </IconButton>
-        </Tooltip>
-        <RoleSwitcher />
+      {/* Content container to stack header and main vertically */}
+  <Box sx={{ flexGrow: 1, ml: 0, p: 0, m: 0, display: 'flex', flexDirection: 'column', bgcolor: '#f4f6f8', minHeight: '100vh' }}>
+        <TopHeaderBar 
+          title="Teacher Dashboard"
+          subtitle="Manage your courses, students and teaching materials"
+          right={
+            <>
+              <style>{`@keyframes bellPulse {0%{transform:scale(1);}50%{transform:scale(1.25);}100%{transform:scale(1);} } @keyframes annGlow {0%{box-shadow:0 0 0 0 rgba(255,0,0,0.65);}70%{box-shadow:0 0 0 16px rgba(255,0,0,0);}100%{box-shadow:0 0 0 0 rgba(255,0,0,0);} }`}</style>
+              <Tooltip title="Notifications">
+                <IconButton
+                  onClick={openNotifications}
+                  size="medium"
+                  sx={{
+                    ...(blink ? { animation: 'bellPulse 1s ease-in-out infinite' } : {}),
+                    ...(annBlink ? { animation: `${blink ? 'bellPulse 1s ease-in-out infinite,' : ''} annGlow 1.6s infinite` } : {}),
+                    bgcolor: annBlink ? 'error.light' : 'warning.main',
+                    color: 'white',
+                    '&:hover': { bgcolor: annBlink ? 'error.main' : 'warning.dark' }
+                  }}
+                >
+                  <Badge color="error" badgeContent={unreadCount > 99 ? '99+' : unreadCount} invisible={unreadCount === 0}>
+                    <NotificationsIcon />
+                  </Badge>
+                </IconButton>
+              </Tooltip>
+              <RoleSwitcher />
+            </>
+          }
+        />
         <Menu
           anchorEl={notifAnchor}
-            open={Boolean(notifAnchor)}
-            onClose={closeNotifications}
-            PaperProps={{ sx: { maxHeight: 400, width: 320 } }}
-          >
-            {notifications.length === 0 && <MenuItem disabled>No notifications</MenuItem>}
-            {notifications.slice(0, 50).map(n => (
-              <MenuItem key={n._id} onClick={closeNotifications} sx={!n.read ? { fontWeight: 600 } : {}}>
-                <Box>
-                  <Typography variant="body2">{n.message}</Typography>
-                  <Typography variant="caption" color="text.secondary">{n.createdAt ? new Date(n.createdAt).toLocaleString() : ''}</Typography>
-                </Box>
-              </MenuItem>
-            ))}
-          </Menu>
-      </Box>
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
-        <Toolbar /> {/* Adds spacing for the AppBar */}
+          open={Boolean(notifAnchor)}
+          onClose={closeNotifications}
+          PaperProps={{ sx: { maxHeight: 400, width: 320 } }}
+        >
+          {notifications.length === 0 && <MenuItem disabled>No notifications</MenuItem>}
+          {notifications.slice(0, 50).map(n => (
+            <MenuItem key={n._id} onClick={closeNotifications} sx={!n.read ? { fontWeight: 600 } : {}}>
+              <Box>
+                <Typography variant="body2">{n.message}</Typography>
+                <Typography variant="caption" color="text.secondary">{n.createdAt ? new Date(n.createdAt).toLocaleString() : ''}</Typography>
+              </Box>
+            </MenuItem>
+          ))}
+        </Menu>
+        {/* Main content */}
+  <Box component="main" sx={{ flexGrow: 1, pt: 3, pr: 3, pb: 3, pl: 3 }}>
         <Routes>
           <Route path="/dashboard" element={<TeacherDashboardHome />} />
           <Route path="/profile" element={<TeacherProfile />} />
@@ -188,6 +197,7 @@ const TeacherDashboard = () => {
           <Route path="/analytics" element={<PermissionRoute element={<TeacherAnalytics viewType="course" />} permission="view_analytics" />} />
           <Route path="*" element={<Navigate to="/teacher/dashboard" replace />} />
         </Routes>
+        </Box>
       </Box>
     </Box>
     </DashboardRoleGuard>

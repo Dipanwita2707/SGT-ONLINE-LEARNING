@@ -5,8 +5,13 @@ import {
   List, 
   ListItem, 
   ListItemText,
-  Box, 
-  Button, 
+  B  return (
+    <Box sx={{ 
+      display: 'flex', 
+      minHeight: '100vh', 
+      backgroundColor: '#f8fafc'
+    }}>
+      <ProfessionalSidebar currentUser={currentUser} /> Button, 
   Grid, 
   Card, 
   CardContent, 
@@ -37,7 +42,7 @@ import VideoLibraryIcon from '@mui/icons-material/VideoLibrary';
 import { parseJwt } from '../utils/jwt';
 import { useUserRole } from '../contexts/UserRoleContext';
 import { logoutUser } from '../utils/authService';
-import Sidebar from '../components/Sidebar';
+import ProfessionalSidebar from '../components/ProfessionalSidebar';
 import NotificationBell from '../components/admin/NotificationBell';
 import RoleSwitcher from '../components/RoleSwitcher';
 import AnnouncementPage from './AnnouncementPage';
@@ -200,26 +205,25 @@ const AdminDashboard = () => {
     <Box sx={{ 
       display: 'flex', 
       minHeight: '100vh', 
-      backgroundColor: '#f4f6f8'
+      backgroundColor: '#f8fafc'
     }}>
       <Sidebar currentUser={currentUser} />
       
       {/* Main Content Area */}
       <Box sx={{ 
         flexGrow: 1, 
-        ml: 0, // No margin - content is flush with sidebar
+        ml: '280px', // Account for fixed sidebar width
         display: 'flex',
         flexDirection: 'column'
       }}>
         {/* Professional Top Header Bar */}
         <Box sx={{ 
-          background: 'linear-gradient(180deg, #ffffff 0%, #f6f7fb 100%)',
+          backgroundColor: 'white',
           borderBottom: '1px solid #e5e7eb',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          pl: 0, // no left padding so content hugs the sidebar divider
-          pr: 3,
+          px: 4,
           py: 2.5,
           boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
           zIndex: 100
@@ -331,14 +335,9 @@ const AdminDashboard = () => {
           component="main" 
           sx={{ 
             flexGrow: 1, 
-            ml: 0, // No extra margin; already offset by parent ml: '280px'
-            pt: 3,
-            pr: 3,
-            pb: 3,
-            pl: 0, // no left padding so content hugs the sidebar divider
-            backgroundColor: '#f4f6f8',
-            minHeight: '100vh',
-            // No border-left here; divider lives on the Sidebar edge
+            p: 4,
+            backgroundColor: '#f8fafc',
+            minHeight: 'calc(100vh - 80px)' // Subtract header height
           }}
         >
         {isOnMainDashboard && (

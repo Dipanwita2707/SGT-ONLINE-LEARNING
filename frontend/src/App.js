@@ -17,26 +17,8 @@ import RoleBasedRedirect from './components/RoleBasedRedirect';
 import { restoreUserFromToken } from './utils/authService';
 import { UserRoleProvider } from './contexts/UserRoleContext';
 
-// Create a simple theme
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1976d2',
-    },
-    secondary: {
-      main: '#f50057',
-    },
-    background: {
-      default: '#f4f6f8',
-    },
-  },
-  shape: {
-    borderRadius: 8,
-  },
-  typography: {
-    fontFamily: 'Roboto, Arial',
-  },
-});
+// Import enhanced theme
+import theme from './theme/theme';
 
 function App() {
   const navigate = useNavigate();

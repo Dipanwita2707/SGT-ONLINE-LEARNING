@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Grid, Typography, Paper, Card, CardContent, CircularProgress, Alert, Chip, Box, List, ListItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
+import { Grid, Typography, Paper, Card, CardContent, CircularProgress, Alert, Chip, Box, List, ListItem, ListItemIcon, ListItemText, Divider, Avatar, IconButton } from '@mui/material';
 import axios from 'axios';
 import { parseJwt } from '../../utils/jwt';
 import { hasPermission } from '../../utils/permissions';
@@ -11,6 +11,7 @@ import VideoLibraryIcon from '@mui/icons-material/VideoLibrary';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 
 // Helper function to get permission label
 const getPermissionLabel = (permission) => {
@@ -47,10 +48,17 @@ const TeacherDashboardHome = () => {
     courseCount: 0,
     studentCount: 0,
     videoCount: 0,
-    forumCount: 0
+    forumCount: 0,
+    activeStudentCount: 0,
   });
   const [courses, setCourses] = useState([]);
   const [teacherProfile, setTeacherProfile] = useState(null);
+
+  // Dashboard metric visibility toggles (to mimic the customization bar in the design)
+  const [showStudents, setShowStudents] = useState(true);
+  const [showActive, setShowActive] = useState(true);
+  const [showCourses, setShowCourses] = useState(true);
+  const [showVideos, setShowVideos] = useState(true);
 
   // Function to check if user is a Course Coordinator (CC) - simplified for quiz review only
   const isCC = () => {
@@ -118,7 +126,15 @@ const TeacherDashboardHome = () => {
           headers: { Authorization: `Bearer ${token}`, ...cacheHeaders }
         });
         
-        setDashboardData(overviewResponse.data);
+        // Normalize overview payload with safe fallbacks
+        const ov = overviewResponse?.data || {};
+        setDashboardData({
+          courseCount: ov.courseCount ?? 0,
+          studentCount: ov.studentCount ?? 0,
+          videoCount: ov.videoCount ?? 0,
+          forumCount: ov.forumCount ?? 0,
+          activeStudentCount: ov.activeStudentCount ?? 0,
+        });
         setCourses(coursesResponse.data || []);
         setTeacherProfile(profileResponse.data);
         
@@ -131,7 +147,8 @@ const TeacherDashboardHome = () => {
           courseCount: 0,
           studentCount: 0,
           videoCount: 0,
-          forumCount: 0
+          forumCount: 0,
+          activeStudentCount: 0,
         });
         setLoading(false);
       }
@@ -142,14 +159,116 @@ const TeacherDashboardHome = () => {
     }
   }, [token]);
 
+  // Reusable metric/card component to match the glowing cards design
+  const StatCard = ({ title, value, color, icon, caption }) => (
+    <Card
+      sx={{
+        position: 'relative',
+        overflow: 'hidden',
+        borderRadius: 4,
+        border: '1px solid #e5e7eb',
+        boxShadow: '0 10px 30px rgba(2, 6, 23, 0.08)',
+        background: `linear-gradient(180deg, #ffffff 0%, #fafbff 100%)`,
+        '&:before': {
+          content: '""',
+          position: 'absolute',
+          right: -20,
+          top: -20,
+          width: 120,
+          height: 120,
+          borderRadius: '50%',
+          background: `radial-gradient(circle at center, ${color}22 0%, ${color}00 60%)`,
+          filter: 'blur(6px)'
+        }
+      }}
+    >
+      <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Avatar sx={{ bgcolor: `${color}`, width: 48, height: 48, boxShadow: `0 8px 20px ${color}55` }}>
+          {icon}
+        </Avatar>
+        <Box>
+          <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 600 }}>
+            {title}
+          </Typography>
+          <Typography variant="h3" sx={{ fontWeight: 800, letterSpacing: '-0.02em', textShadow: `0 1px 0 #fff, 0 8px 24px ${color}55` }}>
+            {value}
+          </Typography>
+          {caption && (
+            <Typography variant="body2" color="text.secondary">{caption}</Typography>
+          )}
+        </Box>
+        <Box sx={{ ml: 'auto' }}>
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#f1f5f9',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 4px 12px rgba(2,6,23,0.06)'
+            }}
+          >
+            <ChevronRightRoundedIcon sx={{ color: '#334155' }} />
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div>
-      <Typography variant="h4" gutterBottom>
-        Teacher Dashboard
-      </Typography>
-      <Typography variant="subtitle1" gutterBottom>
-        Welcome, {currentUser?.name || 'Teacher'}!
-      </Typography>
+      {/* Customization bar */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 3,
+          mb: 3,
+          borderRadius: 3,
+          border: '1px solid #e5e7eb',
+          background: 'linear-gradient(180deg, #ffffff 0%, #f6f7fb 100%)',
+        }}
+      >
+        <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+          Dashboard Customization
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Toggle metrics visibility to customize your dashboard view
+        </Typography>
+        <Box sx={{ borderTop: '1px solid #e5e7eb', my: 2 }} />
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Chip
+            label="Total Students"
+            color={showStudents ? 'primary' : 'default'}
+            onClick={() => setShowStudents(v => !v)}
+            variant={showStudents ? 'filled' : 'outlined'}
+            icon={<Box component="span" sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#2563eb' }} />}
+          />
+          <Chip
+            label="Active Students"
+            color={showActive ? 'success' : 'default'}
+            onClick={() => setShowActive(v => !v)}
+            variant={showActive ? 'filled' : 'outlined'}
+            icon={<Box component="span" sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#16a34a' }} />}
+          />
+          <Chip
+            label="Total Courses"
+            color={showCourses ? 'warning' : 'default'}
+            onClick={() => setShowCourses(v => !v)}
+            variant={showCourses ? 'filled' : 'outlined'}
+            icon={<Box component="span" sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#f59e0b' }} />}
+          />
+          <Chip
+            label="Total Videos"
+            color={showVideos ? 'secondary' : 'default'}
+            onClick={() => setShowVideos(v => !v)}
+            variant={showVideos ? 'filled' : 'outlined'}
+            icon={<Box component="span" sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#7c3aed' }} />}
+          />
+        </Box>
+      </Paper>
 
       {loading ? (
         <CircularProgress />
@@ -157,69 +276,53 @@ const TeacherDashboardHome = () => {
         <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>
       ) : (
         <Grid container spacing={3} sx={{ mt: 1 }}>
-          <Grid item xs={12} md={6} lg={3}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" color="text.secondary" gutterBottom>
-                  Courses
-                </Typography>
-                <Typography variant="h3">
-                  {dashboardData.courseCount}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  courses assigned
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} md={6} lg={3}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" color="text.secondary" gutterBottom>
-                  Students
-                </Typography>
-                <Typography variant="h3">
-                  {dashboardData.studentCount}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  across all courses
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} md={6} lg={3}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" color="text.secondary" gutterBottom>
-                  Videos
-                </Typography>
-                <Typography variant="h3">
-                  {dashboardData.videoCount}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  uploaded
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} md={6} lg={3}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" color="text.secondary" gutterBottom>
-                  Forums
-                </Typography>
-                <Typography variant="h3">
-                  {dashboardData.forumCount}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  active discussions
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
+          {showStudents && (
+            <Grid item xs={12} md={6} lg={3}>
+              <StatCard
+                title="Students"
+                value={dashboardData.studentCount}
+                caption="Total registered students"
+                color="#2563eb"
+                icon={<PeopleIcon />}
+              />
+            </Grid>
+          )}
+
+          {showActive && (
+            <Grid item xs={12} md={6} lg={3}>
+              <StatCard
+                title="Active"
+                value={dashboardData.activeStudentCount || 0}
+                caption="Active students (last 10 min)"
+                color="#16a34a"
+                icon={<CheckCircleIcon />}
+              />
+            </Grid>
+          )}
+
+          {showCourses && (
+            <Grid item xs={12} md={6} lg={3}>
+              <StatCard
+                title="Courses"
+                value={dashboardData.courseCount}
+                caption="Total available courses"
+                color="#f59e0b"
+                icon={<MdClass />}
+              />
+            </Grid>
+          )}
+
+          {showVideos && (
+            <Grid item xs={12} md={6} lg={3}>
+              <StatCard
+                title="Videos"
+                value={dashboardData.videoCount}
+                caption="Total uploaded videos"
+                color="#7c3aed"
+                icon={<VideoLibraryIcon />}
+              />
+            </Grid>
+          )}
           
           <Grid item xs={12} md={6}>
             <Paper sx={{ p: 3, height: '100%' }}>

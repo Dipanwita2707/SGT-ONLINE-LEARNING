@@ -583,7 +583,7 @@ exports.getCourseVideos = async (req, res) => {
 exports.uploadCourseVideo = async (req, res) => {
   try {
     const { courseId } = req.params;
-    const { title, description, unitId } = req.body;
+    const { title, description, unitId, videoLink, videoType } = req.body;
     
     // Verify teacher is assigned to a section that contains this course OR is a coordinator
     const teacherHasCourse = await Section.exists({ $or: [{ teacher: req.user._id }, { teachers: req.user._id }], courses: courseId });
@@ -597,8 +597,15 @@ exports.uploadCourseVideo = async (req, res) => {
       return res.status(404).json({ message: 'Course not found' });
     }
     
-    if (!req.file) {
-      return res.status(400).json({ message: 'No video file uploaded' });
+    // Validate input based on video type
+    if (videoType === 'link') {
+      if (!videoLink) {
+        return res.status(400).json({ message: 'Video link is required for link uploads' });
+      }
+    } else {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No video file uploaded' });
+      }
     }
     
     // Check if units exist for this course
@@ -608,18 +615,29 @@ exports.uploadCourseVideo = async (req, res) => {
       return res.status(400).json({ message: 'Unit selection is required for this course' });
     }
     
-    // Get duration from frontend if provided, otherwise default to 0
-    const duration = req.body.duration ? parseInt(req.body.duration, 10) : 0;
-    
-    // Create video entry in database
-    const video = new Video({
+    // Create video entry in database based on type
+    const videoData = {
       title,
       description,
       course: courseId,
-      teacher: req.user._id,
-      videoUrl: `/uploads/${req.file.filename}`,
-      duration: duration
-    });
+      teacher: req.user._id
+    };
+    
+    if (videoType === 'link' || videoLink) {
+      // Video link
+      videoData.videoLink = videoLink;
+      videoData.videoType = 'link';
+    } else {
+      // File upload
+      videoData.videoUrl = `/uploads/${req.file.filename}`;
+      videoData.videoType = 'upload';
+      
+      // Get duration from frontend if provided, otherwise default to 0
+      const duration = req.body.duration ? parseInt(req.body.duration, 10) : 0;
+      videoData.duration = duration;
+    }
+    
+    const video = new Video(videoData);
     
     // If unitId is provided, associate the video with that unit
     if (unitId && mongoose.Types.ObjectId.isValid(unitId)) {

@@ -16,6 +16,7 @@ import {
   alpha,
   Badge
 } from '@mui/material';
+import Chip from '@mui/material/Chip';
 import PeopleIcon from '@mui/icons-material/People';
 import SchoolIcon from '@mui/icons-material/School';
 import { MdClass } from 'react-icons/md';
@@ -41,6 +42,7 @@ import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import GroupsIcon from '@mui/icons-material/Groups';
 import VideoCallIcon from '@mui/icons-material/VideoCall';
+import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { hasPermission } from '../utils/permissions';
 import { useUserRole } from '../contexts/UserRoleContext';
@@ -91,7 +93,7 @@ const Sidebar = ({ currentUser }) => {
   
   // Different menus based on user role
   const adminMenu = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: 'dashboard', color: '#4361ee' },
+  { text: 'Analytics', icon: <DashboardIcon />, path: 'dashboard', color: '#4361ee' },
   { text: 'Announcements', icon: <NotificationsActiveIcon />, path: 'announcements', color: '#1976d2' },
     { text: 'Teachers', icon: <PeopleIcon />, path: 'teachers', color: '#3a0ca3' },
     { text: 'Students', icon: <SchoolIcon />, path: 'students', color: '#7209b7' },
@@ -144,6 +146,7 @@ const Sidebar = ({ currentUser }) => {
   { text: 'Announcements', icon: <NotificationsActiveIcon />, path: 'announcements', color: '#1976d2' },
     { text: 'My Courses', icon: <MdClass />, path: 'courses', color: '#f72585' },
     { text: 'My Section', icon: <GroupsIcon />, path: 'section', color: '#ff5722' },
+    { text: 'Quiz Results', icon: <AssessmentIcon />, path: 'quiz-results', color: '#9c27b0' },
     { text: 'Live Classes', icon: <VideoCallIcon />, path: 'live-classes', color: '#00c851', isNew: true },
     { text: 'Videos', icon: <VideoLibraryIcon />, path: 'videos', color: '#7209b7' },
   ];
@@ -245,226 +248,286 @@ const Sidebar = ({ currentUser }) => {
     return name.substring(0, 2).toUpperCase();
   };
   
+  // Determine dashboard title per role for the header brand
+  const dashboardTitle = (
+    currentRole === 'admin' || currentRole === 'superadmin' ? 'Admin Dashboard' :
+    currentRole === 'dean' ? 'Dean Dashboard' :
+    currentRole === 'hod' ? 'HOD Dashboard' :
+    (currentRole === 'teacher' || currentRole === 'cc') ? 'Teacher Dashboard' :
+    currentRole === 'student' ? 'Student Dashboard' : 'Dashboard'
+  );
+
+  const primaryDisplayName = currentUser?.name || (
+    (currentRole === 'admin' || currentRole === 'superadmin') ? 'Admin' : roleName
+  );
+
   return (
     <Drawer 
       variant="permanent" 
       sx={{ 
-        width: 260, 
+        width: 230, 
         flexShrink: 0, 
         [`& .MuiDrawer-paper`]: { 
-          width: 260, 
+          width: 230, 
           boxSizing: 'border-box',
-          borderRight: 0,
-          boxShadow: '2px 0px 20px rgba(0, 0, 0, 0.08)',
-          background: theme.palette.mode === 'light' 
-            ? 'linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%)'
-            : 'linear-gradient(180deg, #1c2536 0%, #111827 100%)'
+          borderRight: 'none',
+          boxShadow: '4px 0 8px rgba(0, 0, 0, 0.05)',
+          borderRadius: 0,
+          backgroundColor: '#0d1f44',
+          backgroundImage: 'linear-gradient(180deg, #0d1f44 0%, #0f2f6b 50%, #0b214f 100%)',
+          position: 'fixed',
+          height: '100vh',
+          zIndex: 1200,
+          overflowY: 'auto',
+          // Smooth, dark, thin scrollbar that blends with the sidebar
+          scrollbarWidth: 'thin', // Firefox
+          scrollbarColor: 'rgba(255,255,255,0.25) transparent', // Firefox
+          '&::-webkit-scrollbar': {
+            width: 8,
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'transparent',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: 'rgba(255,255,255,0.25)',
+            borderRadius: 8,
+            border: '2px solid transparent',
+            backgroundClip: 'content-box',
+          },
+          '&::-webkit-scrollbar-thumb:hover': {
+            backgroundColor: 'rgba(255,255,255,0.35)'
+          }
         } 
       }}
     >
-      <Toolbar sx={{ 
-        background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-        height: 80,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-        px: 2
-      }}>
-        <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', letterSpacing: '0.5px' }}>
-          SGT Learning
-        </Typography>
-      </Toolbar>
-      
-      {/* User profile section */}
+      {/* Logo Section - Compact Professional Design */}
       <Box sx={{ 
-        p: 2.5, 
-        display: 'flex', 
-        flexDirection: 'column', 
+        height: 56,
+        display: 'flex',
         alignItems: 'center',
-        borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
-        mb: 1.5,
-        pb: 2.5,
-        background: 'linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0) 100%)'
+        px: 2,
+        py: 1.5
       }}>
-        <Avatar 
-          sx={{ 
-            width: 70, 
-            height: 70, 
-            bgcolor: roleColor,
-            mb: 1.5,
-            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.16)',
-            border: '3px solid white'
-          }}
-        >
-          {getInitials(currentUser?.name || currentUser?.email)}
-        </Avatar>
-        <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#333', mb: 0.5 }}>
-          {currentUser?.name || currentUser?.email}
-        </Typography>
-        <Typography 
-          variant="body2" 
-          sx={{ 
-            color: 'white',
-            bgcolor: roleColor,
-            px: 2,
-            py: 0.5,
-            borderRadius: 5,
-            mt: 0.5,
-            fontWeight: 500,
-            fontSize: '0.75rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
-          }}
-        >
-          {roleName}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box 
+            sx={{ 
+              width: 24, 
+              height: 24, 
+              backgroundColor: '#3b82f6',
+              borderRadius: 0.5,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <Box sx={{ 
+              width: 12, 
+              height: 12, 
+              backgroundColor: 'white',
+              borderRadius: 0.5
+            }} />
+          </Box>
+          <Typography variant="h6" sx={{ 
+            color: 'white', 
+            fontWeight: 600,
+            fontSize: '16px',
+            letterSpacing: '0.5px'
+          }}>
+            {dashboardTitle}
+          </Typography>
+        </Box>
       </Box>
       
-      <List sx={{ px: 1 }}>
+      {/* User Profile Section - Compact */}
+      <Box sx={{ 
+        px: 2,
+        py: 1.5,
+        borderBottom: '1px solid rgba(255,255,255,0.1)'
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar 
+            sx={{ 
+              width: 36, 
+              height: 36, 
+              bgcolor: '#3b82f6',
+              color: 'white',
+              fontWeight: 700,
+              fontSize: '14px'
+            }}
+          >
+            {getInitials(currentUser?.name || currentUser?.email)}
+          </Avatar>
+          <Box>
+            <Typography variant="subtitle2" fontWeight={700} sx={{ 
+              color: 'white', 
+              mb: 0.5,
+              fontSize: '13px',
+              lineHeight: 1.2
+            }}>
+              {primaryDisplayName}
+            </Typography>
+            <Chip 
+              size="small" 
+              label={(currentRole === 'admin' || currentRole === 'superadmin' ? 'Administrator' : currentRole || 'User').toString().toUpperCase()} 
+              sx={{ 
+                height: 18,
+                fontSize: '10px',
+                color: 'rgba(255,255,255,0.8)',
+                bgcolor: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                '& .MuiChip-label': { px: 0.75, py: 0.25 }
+              }}
+            />
+          </Box>
+        </Box>
+      </Box>
+      
+      {/* Navigation Menu - Professional and Compact */}
+      <List sx={{ px: 1.5, py: 0.5, flex: 1 }}>
         {menu.map((item, index) => {
-          const isSelected = location.pathname === `${basePath}/${item.path}`;
+          // Highlight as selected for exact and nested paths (e.g., announcements/history)
+          const target = `${basePath}/${item.path}`;
+          const atRoot = location.pathname === basePath || location.pathname === `${basePath}/`;
+          const isDashboardItem = item.path === 'dashboard';
+          const isSelected = atRoot ? isDashboardItem : (location.pathname === target || location.pathname.startsWith(`${target}/`));
+          const iconBg = `${item.color}33`; // ~20% opacity
+          const iconBorder = `${item.color}55`;
               
           return (
             <ListItemButton 
               key={item.text} 
               onClick={() => navigate(`${basePath}/${item.path}`)}
               sx={{ 
-                my: 0.5,
-                borderRadius: 2,
+                mb: 0.75,
+                borderRadius: '14px',
                 py: 1.2,
-                ...(isSelected && {
-                  bgcolor: alpha(item.color, 0.15),
-                  '&:hover': {
-                    bgcolor: alpha(item.color, 0.2),
-                  },
-                  borderRight: `3px solid ${item.color}`,
-                  pl: item.highlight ? 1 : 2
-                }),
-                ...(item.highlight && !isSelected && {
-                  borderLeft: `3px solid ${item.color}`,
-                  pl: 1,
-                }),
+                px: 1.75,
+                minHeight: 48,
+                color: isSelected ? 'white' : 'rgba(255,255,255,0.85)',
+                backgroundColor: isSelected ? 'rgba(255,255,255,0.08)' : 'transparent',
+                border: isSelected ? `1px solid ${iconBorder}` : '1px solid transparent',
+                boxShadow: isSelected 
+                  ? '0 10px 26px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15)'
+                  : 'none',
                 '&:hover': {
-                  bgcolor: alpha(item.color, 0.1),
-                  transform: 'translateX(4px)',
-                  boxShadow: `0 4px 12px ${alpha(item.color, 0.15)}`
+                  backgroundColor: isSelected ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.06)',
+                  color: 'white'
                 },
+                transition: 'all 0.2s ease',
                 position: 'relative',
-                transition: 'all 0.25s ease-in-out',
-                transform: isSelected ? 'scale(1.02)' : 'scale(1)',
-                boxShadow: isSelected ? `0 4px 10px ${alpha(item.color, 0.2)}` : 'none',
-                overflow: 'hidden',
-                '&::after': {
+                '&::before': isSelected ? {
                   content: '""',
                   position: 'absolute',
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: '50%',
-                  backgroundColor: item.color,
-                  right: '12px',
+                  left: -8,
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  opacity: isSelected ? 1 : 0,
-                  transition: 'opacity 0.3s ease'
-                }
+                  width: 4,
+                  height: 36,
+                  background: `linear-gradient(180deg, rgba(59,130,246,0.0) 0%, ${item.color || '#3b82f6'} 50%, rgba(59,130,246,0.0) 100%)`,
+                  filter: 'blur(2px)',
+                  borderRadius: 6
+                } : {},
+                '&::after': isSelected ? {
+                  content: '""',
+                  position: 'absolute',
+                  right: 6,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 3,
+                  height: '60%',
+                  backgroundColor: item.color || '#3b82f6',
+                  borderRadius: 3,
+                  boxShadow: `0 0 12px ${item.color}AA`
+                } : {}
               }}
             >
               <ListItemIcon sx={{ 
-                color: isSelected ? item.color : 'inherit',
-                minWidth: 40,
-                transition: 'all 0.3s ease',
-                transform: isSelected ? 'scale(1.1)' : 'scale(1)'
+                minWidth: 38,
+                mr: 1,
+                fontSize: '18px',
+                color: 'inherit'
               }}>
-                {item.icon}
+                <Box
+                  sx={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 2,
+                    backgroundColor: isSelected ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.08)',
+                    border: `1px solid ${isSelected ? iconBorder : 'rgba(255,255,255,0.08)'}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: isSelected ? '#fff' : 'rgba(255,255,255,0.9)'
+                  }}
+                >
+                  {item.icon}
+                </Box>
               </ListItemIcon>
               <ListItemText 
                 primary={
-                  <Box display="flex" alignItems="center">
-                    <Typography
-                      variant="body1"
-                      sx={{ 
-                        fontWeight: isSelected ? 600 : 400,
-                        color: isSelected ? item.color : 'inherit',
-                        transition: 'color 0.2s ease'
-                      }}
-                    >
-                      {item.text}
-                    </Typography>
-                    {item.isNew && (
-                      <Badge 
-                        sx={{ 
-                          ml: 1.5,
-                          "& .MuiBadge-badge": {
-                            fontSize: '0.6rem',
-                            height: 18,
-                            padding: '0 6px',
-                            backgroundColor: '#ff0066',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            borderRadius: 10,
-                            boxShadow: '0 2px 6px rgba(255, 0, 102, 0.4)',
-                            animation: 'pulse 2s infinite'
-                          },
-                          '@keyframes pulse': {
-                            '0%': { boxShadow: '0 0 0 0 rgba(255, 0, 102, 0.7)' },
-                            '70%': { boxShadow: '0 0 0 6px rgba(255, 0, 102, 0)' },
-                            '100%': { boxShadow: '0 0 0 0 rgba(255, 0, 102, 0)' }
-                          }
-                        }}
-                        badgeContent="NEW"
-                      />
-                    )}
-                    {item.badge && (
-                      <Badge 
-                        sx={{ 
-                          ml: 1.5,
-                          "& .MuiBadge-badge": {
-                            fontSize: '0.6rem',
-                            height: 18,
-                            padding: '0 6px',
-                            backgroundColor: item.color || '#2e7d32',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            borderRadius: 10,
-                            boxShadow: `0 2px 6px ${alpha(item.color || '#2e7d32', 0.4)}`,
-                          }
-                        }}
-                        badgeContent={item.badge}
-                      />
-                    )}
-                  </Box>
+                  <Typography
+                    variant="body2"
+                    sx={{ 
+                      fontWeight: isSelected ? 700 : 500,
+                      fontSize: '0.9rem',
+                      letterSpacing: '0.2px'
+                    }}
+                  >
+                    {item.text}
+                  </Typography>
                 }
               />
+              {/* Right bubble removed to match clean design; using thin right accent via ::after */}
+              {item.isNew && (
+                <Box
+                  sx={{
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    fontSize: '0.6rem',
+                    fontWeight: 700,
+                    px: 1,
+                    py: 0.2,
+                    borderRadius: 1,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  NEW
+                </Box>
+              )}
             </ListItemButton>
           );
         })}
       </List>
       
-      <Box sx={{ flexGrow: 1 }} />
-      
+      {/* Professional Footer */}
       <Box 
         sx={{ 
-          p: 2.5, 
-          textAlign: 'center', 
-          borderTop: '1px solid rgba(0, 0, 0, 0.08)',
-          background: 'linear-gradient(0deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0) 100%)',
-          mt: 2
+          p: 3, 
+          borderTop: '1px solid rgba(255,255,255,0.1)',
+          background: 'rgba(0,0,0,0.1)',
+          mt: 'auto'
         }}
       >
         <Typography 
           variant="caption" 
           sx={{
-            color: theme.palette.mode === 'light' ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.6)',
+            color: 'rgba(255,255,255,0.6)',
             fontWeight: 500,
             letterSpacing: '0.5px',
-            fontSize: '0.7rem'
+            fontSize: '0.7rem',
+            textAlign: 'center',
+            display: 'block'
           }}
         >
-          © {new Date().getFullYear()} SGT Learning Platform
-          <Box component="span" sx={{ display: 'block', mt: 0.5, color: '#6366f1', fontWeight: 600 }}>
-            Version 2.0
+          © {new Date().getFullYear()} SGT University
+          <Box component="span" sx={{ 
+            display: 'block', 
+            mt: 0.5, 
+            color: 'rgba(255,255,255,0.8)', 
+            fontWeight: 600 
+          }}>
+            Learning Management System
           </Box>
         </Typography>
       </Box>

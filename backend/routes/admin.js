@@ -119,7 +119,7 @@ router.get('/unit/:unitId/deadline', require('../controllers/unitController').ge
 router.get('/course/:id/details', adminController.getCourseDetails);
 router.get('/course/:id/videos', adminController.getCourseVideos);
 router.get('/course/:id/students', adminController.getCourseStudents);
-router.get('/video/:id/analytics', videoController.getVideoAnalytics);
+// router.get('/video/:id/analytics', videoController.getVideoAnalytics); // Function not implemented
 
 // Assign course to teacher
 router.post('/course/:id/assign-teacher', async (req, res) => {
@@ -157,8 +157,8 @@ router.post('/course/:id/assign-teacher', async (req, res) => {
 
 // Video management
 router.post('/video/upload', upload.single('file'), videoController.uploadVideo);
-router.delete('/video/:id', videoController.removeVideo);
-router.patch('/video/:id/warn', videoController.warnVideo);
+router.delete('/video/:id', videoController.deleteVideo);
+// router.patch('/video/:id/warn', videoController.warnVideo); // Function not implemented
 
 // Analytics
 router.get('/analytics/overview', analyticsController.getOverview);

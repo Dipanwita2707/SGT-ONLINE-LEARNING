@@ -75,28 +75,53 @@ export const getCourseVideos = async (courseId, token) => {
 
 // New API functions for teacher functionality
 export const uploadCourseVideo = async (courseId, videoData, token) => {
-  const formData = new FormData();
-  formData.append('video', videoData.file);
-  formData.append('title', videoData.title);
-  formData.append('description', videoData.description);
-  
-  // Include video duration if extracted from file
-  if (videoData.file.videoDuration) {
-    formData.append('duration', videoData.file.videoDuration);
-  }
-  
-  // Include unitId if provided
-  if (videoData.unitId) {
-    formData.append('unitId', videoData.unitId);
-  }
-  
-  const res = await axios.post(`/api/teacher/course/${courseId}/video`, formData, {
-    headers: { 
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'multipart/form-data'
+  // Handle both file upload and video link
+  if (videoData.videoType === 'link' || videoData.videoLink) {
+    // Video link submission
+    const data = {
+      title: videoData.title,
+      description: videoData.description,
+      videoLink: videoData.videoLink,
+      videoType: 'link'
+    };
+    
+    if (videoData.unitId) {
+      data.unitId = videoData.unitId;
     }
-  });
-  return res.data;
+    
+    const res = await axios.post(`/api/teacher/course/${courseId}/video`, data, {
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return res.data;
+  } else {
+    // File upload
+    const formData = new FormData();
+    formData.append('video', videoData.file);
+    formData.append('title', videoData.title);
+    formData.append('description', videoData.description);
+    formData.append('videoType', 'upload');
+    
+    // Include video duration if extracted from file
+    if (videoData.file && videoData.file.videoDuration) {
+      formData.append('duration', videoData.file.videoDuration);
+    }
+    
+    // Include unitId if provided
+    if (videoData.unitId) {
+      formData.append('unitId', videoData.unitId);
+    }
+    
+    const res = await axios.post(`/api/teacher/course/${courseId}/video`, formData, {
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return res.data;
+  }
 };
 
 export const requestVideoRemoval = async (videoId, reason, token) => {
